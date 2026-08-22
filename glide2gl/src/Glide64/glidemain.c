@@ -45,6 +45,7 @@
 #include "Framebuffer_glide64.h"
 #include "Glide64_Ini.h"
 #include "GlideExtensions.h"
+#include "FrameSkipper_glide64.h"
 #include <libretro.h>
 
 #include "../../../Graphics/RDP/gDP_funcs_C.h"
@@ -487,6 +488,7 @@ output:   none
 *******************************************************************/
 void glide64RomClosed (void)
 {
+   glide64_frameskip_reset();
    ReleaseGfx ();
 }
 
@@ -560,6 +562,9 @@ int glide64RomOpen (void)
       region = OS_TV_TYPE_PAL ; break;
    }
 
+   glide64_frameskip_set_target_fps(region == OS_TV_TYPE_PAL ? 50 : 60);
+   glide64_frameskip_reset();
+
    ReadSpecialSettings (name);
 
    // get the name of the ROM
@@ -621,6 +626,10 @@ int retro_return(bool a);
 void glide64UpdateScreen (void)
 {
    bool forced_update = false;
+
+   /* Official Glide64mk2 frameskip updates its scheduler on each VI and
+    * applies the decision to the following graphics display list. */
+   glide64_frameskip_update();
    uint32_t width = (*gfx_info.VI_WIDTH_REG) << 1;
 
    if (*gfx_info.VI_ORIGIN_REG  > width)

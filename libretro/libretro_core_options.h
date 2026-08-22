@@ -674,6 +674,27 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         },
         "enabled"
     },
+#ifdef HAVE_GLIDE64
+    {
+        CORE_NAME "-glide64-frameskip",
+        "Glide64: Frameskip",
+        "Frameskip",
+        "Skip Glide64 graphics display lists to reduce rendering load. Automatic mode skips only when emulation falls behind and may skip up to five consecutive frames. Disabled preserves normal rendering.",
+        NULL,
+        "glide64",
+        {
+            { "disabled", "Disabled" },
+            { "auto", "Automatic" },
+            { "1", "1" },
+            { "2", "2" },
+            { "3", "3" },
+            { "4", "4" },
+            { "5", "5" },
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+#endif
     {
         CORE_NAME "-gfxplugin-accuracy",
         "GFX Accuracy",
@@ -944,6 +965,22 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         },
         "32"
     },
+#ifdef HAVE_RICE
+    {
+        CORE_NAME "-rice-frameskip",
+        "(Rice) Frameskip",
+        "Frameskip",
+        "Skip every other Rice graphics display list before rendering it. This may improve performance on low-power hardware at the cost of visual smoothness.",
+        NULL,
+        NULL,
+        {
+            { "disabled", "Disabled" },
+            { "1", "1 (Skip every other frame)" },
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+#endif
     {
         CORE_NAME "-gfxplugin",
         "GFX Plugin",

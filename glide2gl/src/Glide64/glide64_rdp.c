@@ -46,6 +46,7 @@
 #include "Framebuffer_glide64.h"
 #include "Glide64_UCode.h"
 #include "GlideExtensions.h"
+#include "FrameSkipper_glide64.h"
 #include "rdp.h"
 #include "../../libretro/libretro_private.h"
 #include "../../Graphics/GBI.h"
@@ -325,6 +326,16 @@ extern bool frame_dupe;
 void glide64ProcessDList(void)
 {
   uint32_t dlist_start, dlist_length, a;
+
+  if (glide64_frameskip_will_skip_next())
+  {
+    /* MI_INTR_DP == 0x20. Preserve task completion while avoiding the costly
+     * display-list parsing/rendering work for this frame. */
+    *gfx_info.MI_INTR_REG |= 0x20;
+    if (gfx_info.CheckInterrupts)
+      gfx_info.CheckInterrupts();
+    return;
+  }
 
   no_dlist            = false;
   update_screen_count = 0;

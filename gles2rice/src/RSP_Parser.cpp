@@ -721,6 +721,25 @@ void DLParser_Process(OSTask * pTask)
 
     status.bScreenIsDrawn = true;
 
+    /* Rice historically supported plugin-level frameskip here. Unlike merely
+     * suppressing video_cb(), this avoids parsing/rendering the skipped display
+     * list and therefore can reduce actual graphics workload. */
+    static unsigned riceSkipFrameCounter = 0;
+    if (options.bSkipFrame)
+    {
+        riceSkipFrameCounter++;
+        if (riceSkipFrameCounter & 1u)
+        {
+            TriggerDPInterrupt();
+            TriggerSPInterrupt();
+            return;
+        }
+    }
+    else
+    {
+        riceSkipFrameCounter = 0;
+    }
+
     if( currentRomOptions.N64RenderToTextureEmuType != TXT_BUF_NONE && defaultRomOptions.bSaveVRAM )
         g_pFrameBufferManager->CheckRenderTextureCRCInRDRAM();
 

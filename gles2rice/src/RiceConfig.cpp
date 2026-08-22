@@ -424,6 +424,15 @@ static void ReadConfiguration(void)
    options.bFullTMEM = ConfigGetParamBool(l_ConfigVideoRice, "FullTMEMEmulation");
    options.bOGLVertexClipper = ConfigGetParamBool(l_ConfigVideoRice, "OpenGLVertexClipper");
    options.bSkipFrame = ConfigGetParamBool(l_ConfigVideoRice, "SkipFrame");
+
+   /* Renetrox frameskip: expose Rice's dormant SkipFrame setting through
+    * libretro Core Options. Keep the original Rice config value as fallback. */
+   {
+      struct retro_variable rice_frameskip_var = { "parallel-n64-rice-frameskip", NULL };
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &rice_frameskip_var) &&
+          rice_frameskip_var.value)
+         options.bSkipFrame = strcmp(rice_frameskip_var.value, "1") == 0;
+   }
    options.bTexRectOnly = ConfigGetParamBool(l_ConfigVideoRice, "TexRectOnly");
    options.bSmallTextureOnly = ConfigGetParamBool(l_ConfigVideoRice, "SmallTextureOnly");
    options.bLoadHiResTextures = ConfigGetParamBool(l_ConfigVideoRice, "LoadHiResTextures");

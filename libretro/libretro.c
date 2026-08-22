@@ -59,6 +59,9 @@ uint8_t* g_dd_disk;
 #include "device/rcp/ai/ai_controller.h"
 #include "../mupen64plus-rsp-hle/src/resample_hq.h"
 #include "../Graphics/plugin.h"
+#ifdef HAVE_GLIDE64
+#include "../glide2gl/src/Glide64/FrameSkipper_glide64.h"
+#endif
 
 #ifdef HAVE_THR_AL
 #include "../mupen64plus-video-angrylion/vdac.h"
@@ -1559,6 +1562,29 @@ void update_variables(bool startup)
 	  if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &expvar) && expvar.value)
 		  ForceDisableExtraMem = !strcmp(expvar.value, "disabled") ? 1 : 0;
   }
+
+#ifdef HAVE_GLIDE64
+   var.key = "parallel-n64-glide64-frameskip";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (!strcmp(var.value, "auto"))
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_AUTO, 5);
+      else if (!strcmp(var.value, "disabled"))
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
+      else
+      {
+         int max_skips = atoi(var.value);
+         if (max_skips < 1)
+            max_skips = 1;
+         if (max_skips > 5)
+            max_skips = 5;
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_MANUAL, max_skips);
+      }
+   }
+   else
+      glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
+#endif
 
 #if defined(HAVE_PARALLEL)
    var.key = "parallel-n64-parallel-rdp-synchronous";
