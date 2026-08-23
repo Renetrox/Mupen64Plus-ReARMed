@@ -24,129 +24,6 @@
 uint32_t    last_good_ucode     = (uint32_t) -1;
 void        (*renderCallback)() = NULL;
 
-/* Native FrameSkipper ported from Mupen64Plus FZ.
- *
- * FZ updates the scheduler from UpdateScreen() (VI cadence) and consumes the
- * decision from ProcessDList(). All DLists before the next UpdateScreen share
- * the same skip state, so a scene and its overlays are not split apart.
- *
- * Modern parallel-n64 adaptation:
- * - timing uses libretro's monotonic performance clock;
- * - on a skipped HLE task we set MI_INTR_DP but do NOT call CheckInterrupts()
- *   and do NOT raise MI_INTR_SP here. Current rsp_core consumes DP at task end
- *   and schedules it with normal deferred timing, while rsp-hle already owns
- *   the SP task-done interrupt path. */
-#define GLN64_FRAMESKIP_AUTO     (-1)
-#define GLN64_FRAMESKIP_AUTO_MAX 2
-
-typedef struct
-{
-   int mode;
-   int max_skips;
-   int target_fps;
-   int skip_counter;
-   uint64_t initial_usec;
-   uint64_t virtual_count;
-} gln64_frame_skipper_t;
-
-static gln64_frame_skipper_t gln64_frame_skipper =
-{
-   999, /* force initial mode sync */
-   0,
-   60,
-   0,
-   0,
-   0
-};
-
-static void gln64_frameskip_start(void)
-{
-   gln64_frame_skipper.initial_usec = 0;
-   gln64_frame_skipper.virtual_count = 0;
-   gln64_frame_skipper.skip_counter = 0;
-}
-
-static void gln64_frameskip_sync_mode(void)
-{
-   int mode = parallel_n64_get_gles2n64_frameskip_mode();
-
-   if (mode < GLN64_FRAMESKIP_AUTO)
-      mode = GLN64_FRAMESKIP_AUTO;
-   if (mode > 5)
-      mode = 5;
-
-   if (gln64_frame_skipper.mode != mode)
-   {
-      gln64_frame_skipper.mode = mode;
-      gln64_frame_skipper.max_skips =
-         (mode == GLN64_FRAMESKIP_AUTO) ? GLN64_FRAMESKIP_AUTO_MAX :
-         ((mode > 0) ? mode : 0);
-      gln64_frameskip_start();
-   }
-}
-
-static int gln64_frameskip_will_skip_next(void)
-{
-   gln64_frameskip_sync_mode();
-
-   return gln64_frame_skipper.mode != 0 &&
-          gln64_frame_skipper.skip_counter > 0;
-}
-
-static void gln64_frameskip_update(void)
-{
-   uint64_t now;
-   uint64_t elapsed;
-   uint64_t real_count;
-
-   gln64_frameskip_sync_mode();
-
-   if (gln64_frame_skipper.mode == 0)
-      return;
-
-   /* FZ manual mode: render one update interval, skip N, repeat. */
-   if (gln64_frame_skipper.mode > 0)
-   {
-      if (++gln64_frame_skipper.skip_counter >
-          gln64_frame_skipper.max_skips)
-         gln64_frame_skipper.skip_counter = 0;
-      return;
-   }
-
-   /* FZ automatic virtual-frame catch-up. */
-   now = parallel_n64_get_time_usec();
-
-   if (gln64_frame_skipper.initial_usec == 0 ||
-       now <= gln64_frame_skipper.initial_usec)
-   {
-      gln64_frame_skipper.initial_usec = now;
-      gln64_frame_skipper.virtual_count = 0;
-      gln64_frame_skipper.skip_counter = 0;
-      return;
-   }
-
-   elapsed = now - gln64_frame_skipper.initial_usec;
-   real_count =
-      (elapsed * (uint64_t)gln64_frame_skipper.target_fps) / 1000000u;
-
-   gln64_frame_skipper.virtual_count++;
-
-   if (real_count >= gln64_frame_skipper.virtual_count)
-   {
-      if (real_count > gln64_frame_skipper.virtual_count &&
-          gln64_frame_skipper.skip_counter <
-             gln64_frame_skipper.max_skips)
-      {
-         gln64_frame_skipper.skip_counter++;
-      }
-      else
-      {
-         gln64_frame_skipper.virtual_count = real_count;
-         gln64_frame_skipper.skip_counter = 0;
-      }
-   }
-}
-
 m64p_error gln64PluginStartup(m64p_dynlib_handle CoreLibHandle,
         void *Context, void (*DebugCallback)(void *, int, const char *))
 {
@@ -206,18 +83,6 @@ void gln64ProcessDList(void)
 {
     OGL.frame_dl++;
 
-    if (gln64_frameskip_will_skip_next())
-    {
-        /* Mirror the renderer-side bookkeeping from Mupen64Plus FZ. */
-        __RSP.busy = false;
-        __RSP.DList++;
-
-        /* The modern RSP core consumes this bit after the HLE task returns
-         * and schedules DP_INT with the same deferred timing as normal. */
-        *gfx_info.MI_INTR_REG |= MI_INTR_DP;
-        return;
-    }
-
     RSP_ProcessDList();
     OGL.mustRenderDlist = true;
 }
@@ -237,16 +102,11 @@ int gln64RomOpen (void)
     OGL.frame_prevdl = -1;
     OGL.mustRenderDlist = false;
 
-    gln64_frameskip_sync_mode();
-    gln64_frame_skipper.target_fps = config.romPAL ? 50 : 60;
-    gln64_frameskip_start();
-
     return 1;
 }
 
 EXPORT void CALL RomResumed(void)
 {
-    gln64_frameskip_start();
 }
 
 void gln64ShowCFB (void)
@@ -255,10 +115,6 @@ void gln64ShowCFB (void)
 
 void gln64UpdateScreen (void)
 {
-   /* FZ updates the skipper at VI/update cadence before deciding the next
-    * ProcessDList() skip state. */
-   gln64_frameskip_update();
-
    //has there been any display lists since last update ?
    if (OGL.frame_prevdl == OGL.frame_dl)
       return;
@@ -376,5 +232,4 @@ void gles2n64_reset(void)
    OGL_Stop();
    OGL_Start();
    RSP_Init();
-   gln64_frameskip_start();
 }

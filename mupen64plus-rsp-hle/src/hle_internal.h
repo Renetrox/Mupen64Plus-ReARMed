@@ -80,6 +80,7 @@ struct hle_t
 
 /* some mips interface interrupt flags */
 #define MI_INTR_SP                  0x1
+#define MI_INTR_DP                  0x20
 
 /* some rsp status flags */
 #define SP_STATUS_HALT             0x1

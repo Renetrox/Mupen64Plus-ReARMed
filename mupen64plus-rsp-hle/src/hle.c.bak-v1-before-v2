@@ -69,8 +69,9 @@ static int l_rs_gfx_running;
 static int l_zboss_wait;
 static int l_zboss_running;
 
-/* Decide on actual HLE graphics display lists, not on VI/retro_run cadence. */
-extern int retro_frameskip_should_skip_dlist(void);
+/* Latched once per retro_run() by libretro.c. Only the HLE graphics-forward
+ * path consumes it; LLE RSP tasks are intentionally never discarded. */
+extern int retro_frameskip_this_frame;
 
 void hle_init(struct hle_t* hle,
     unsigned char* dram,
@@ -237,7 +238,7 @@ static void send_dlist_to_gfx_plugin(struct hle_t* hle)
      */
     *hle->sp_status |= SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
 
-    if (retro_frameskip_should_skip_dlist())
+    if (retro_frameskip_this_frame)
     {
         /* Mupen64Plus FZ skips the renderer but still completes the graphics
          * task. Set the DP interrupt bit here, but do NOT call

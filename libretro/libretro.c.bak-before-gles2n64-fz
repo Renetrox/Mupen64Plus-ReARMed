@@ -239,52 +239,43 @@ uint32_t gfx_plugin_accuracy        = 2;
 static enum fork_rsp_plugin_type
                  rsp_plugin;
 
-/* Global HLE graphics frameskip.
+/* Mupen64Plus FZ-style HLE graphics frameskip.
  *  0  = disabled
- * -1  = automatic catch-up
+ * -1  = automatic catch-up (maximum two consecutive skipped graphics frames)
+ * 1-5 = manual number of skipped graphics frames between rendered frames
  *
- * Runtime testing showed that occasional automatic HLE skips work well as a
- * renderer-independent fallback, while forced periodic manual skips can break
- * renderer presentation state. Manual modes therefore live in the renderers
- * that know how to keep their own state coherent.
+ * A N64 video frame can contain more than one HLE graphics task / DList.
+ * Therefore the skip decision is made once for the current VI interval when
+ * its FIRST graphics DList arrives, then reused for every other graphics
+ * DList in that same interval. The manual pattern advances only on VI
+ * intervals which actually contain graphics work.
  *
- * A skip decision is cached for all graphics DLists in the current VI slice.
- * LLE RSP tasks are deliberately never discarded. If native gles2n64
- * frameskip is enabled, it takes precedence and this global layer does not
- * skip gles2n64 DLists. */
+ * This avoids both failure modes seen during testing:
+ *   v1: counting raw VI cadence could phase-lock against 30/20/15 fps games.
+ *   v2: counting individual DLists could render an overlay DList while always
+ *       skipping the scene DList (e.g. title/logo visible over a black scene).
+ *
+ * LLE RSP tasks are deliberately never discarded. */
 #define RETRO_FRAMESKIP_AUTO     (-1)
 #define RETRO_FRAMESKIP_AUTO_MAX 2u
 
 static int      retro_frameskip_mode = 0;
+static unsigned retro_frameskip_manual_skips_remaining = 0;
 static unsigned retro_frameskip_auto_skip_pending = 0;
 static unsigned retro_frameskip_auto_consecutive = 0;
 static uint64_t retro_frameskip_initial_usec = 0;
 static uint64_t retro_frameskip_virtual_count = 0;
 
+/* One generation per retro_run()/VI execution slice. */
 static uint64_t retro_frameskip_vi_serial = 0;
+
+/* Cached decision for all graphics DLists belonging to one VI interval. */
 static uint64_t retro_frameskip_decision_vi = (uint64_t)-1;
 static int      retro_frameskip_skip_current_vi = 0;
 
-/* Native legacy-gles2n64 mode:
- *  0 = disabled, -1 = auto, 1..5 = manual.
- * Read by gles2n64 through libretro_private.h. */
-static int retro_gles2n64_frameskip_mode = 0;
-
-int parallel_n64_get_gles2n64_frameskip_mode(void)
-{
-   return retro_gles2n64_frameskip_mode;
-}
-
-uint64_t parallel_n64_get_time_usec(void)
-{
-   if (perf_cb.get_time_usec)
-      return (uint64_t)perf_cb.get_time_usec();
-
-   return 0;
-}
-
 static void retro_frameskip_reset(void)
 {
+   retro_frameskip_manual_skips_remaining = 0;
    retro_frameskip_auto_skip_pending = 0;
    retro_frameskip_auto_consecutive = 0;
    retro_frameskip_initial_usec = 0;
@@ -295,7 +286,10 @@ static void retro_frameskip_reset(void)
 
 static void retro_frameskip_set_mode(int mode)
 {
-   mode = (mode == RETRO_FRAMESKIP_AUTO) ? RETRO_FRAMESKIP_AUTO : 0;
+   if (mode < RETRO_FRAMESKIP_AUTO)
+      mode = RETRO_FRAMESKIP_AUTO;
+   if (mode > 5)
+      mode = 5;
 
    if (retro_frameskip_mode != mode)
    {
@@ -304,21 +298,20 @@ static void retro_frameskip_set_mode(int mode)
    }
 }
 
+/* Called exactly once before each EmuThreadStep(). It marks a new VI interval.
+ * We do NOT advance the manual pattern here; games may have VIs with no DList.
+ * The pattern advances only when the first real HLE graphics DList arrives. */
 static void retro_frameskip_begin_vi(void)
 {
    retro_frameskip_vi_serial++;
 }
 
-/* Called by the HLE RSP before forwarding a graphics DList. */
+/* Called whenever the HLE RSP is about to forward a real graphics DList.
+ * The first DList in a VI interval chooses render/skip; every subsequent DList
+ * in the same interval receives the same decision. */
 int retro_frameskip_should_skip_dlist(void)
 {
-   if (frame_hidden || rsp_plugin != RSP_HLE ||
-       retro_frameskip_mode != RETRO_FRAMESKIP_AUTO)
-      return 0;
-
-   /* Native gles2n64 frameskip owns the complete renderer lifecycle.
-    * Never stack the global skipper on top of it. */
-   if (gfx_plugin == GFX_GLN64 && retro_gles2n64_frameskip_mode != 0)
+   if (frame_hidden || rsp_plugin != RSP_HLE || retro_frameskip_mode == 0)
       return 0;
 
    if (retro_frameskip_decision_vi == retro_frameskip_vi_serial)
@@ -326,6 +319,23 @@ int retro_frameskip_should_skip_dlist(void)
 
    retro_frameskip_decision_vi = retro_frameskip_vi_serial;
    retro_frameskip_skip_current_vi = 0;
+
+   if (retro_frameskip_mode > 0)
+   {
+      if (retro_frameskip_manual_skips_remaining > 0)
+      {
+         retro_frameskip_manual_skips_remaining--;
+         retro_frameskip_skip_current_vi = 1;
+      }
+      else
+      {
+         retro_frameskip_manual_skips_remaining =
+            (unsigned)retro_frameskip_mode;
+         retro_frameskip_skip_current_vi = 0;
+      }
+
+      return retro_frameskip_skip_current_vi;
+   }
 
    if (retro_frameskip_auto_skip_pending)
    {
@@ -337,9 +347,8 @@ int retro_frameskip_should_skip_dlist(void)
       }
       else
       {
-         /* Force one complete rendered graphics frame after the limit.
-          * Keep the pending request for the next graphics-bearing VI. */
          retro_frameskip_auto_consecutive = 0;
+         retro_frameskip_skip_current_vi = 0;
       }
    }
    else
@@ -354,10 +363,6 @@ static void retro_frameskip_update(void)
 {
    if (frame_hidden || rsp_plugin != RSP_HLE ||
        retro_frameskip_mode != RETRO_FRAMESKIP_AUTO)
-      return;
-
-   /* Native gles2n64 owns skip timing when selected. */
-   if (gfx_plugin == GFX_GLN64 && retro_gles2n64_frameskip_mode != 0)
       return;
 
    if (!perf_cb.get_time_usec)
@@ -1664,35 +1669,19 @@ void update_variables(bool startup)
 {
    struct retro_variable var;
 
-   /* Global renderer-independent HLE frameskip: Auto or Disabled only. */
+   /* FZ-style display-list frameskip. This can be changed at runtime. */
    var.key = CORE_NAME "-frameskip";
-   var.value = NULL;
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-   {
-      retro_frameskip_set_mode(
-         !strcmp(var.value, "auto") ? RETRO_FRAMESKIP_AUTO : 0);
-   }
-
-   /* Native Mupen64Plus-FZ-style skipper for the legacy gles2n64 renderer.
-    * This is intentionally independent from the global layer. When enabled
-    * while gles2n64 is active, native mode automatically takes precedence. */
-   var.key = CORE_NAME "-gles2n64-frameskip";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
       int mode = 0;
 
       if (!strcmp(var.value, "auto"))
-         mode = -1;
+         mode = RETRO_FRAMESKIP_AUTO;
       else if (strcmp(var.value, "disabled"))
          mode = atoi(var.value);
 
-      if (mode < -1)
-         mode = -1;
-      if (mode > 5)
-         mode = 5;
-
-      retro_gles2n64_frameskip_mode = mode;
+      retro_frameskip_set_mode(mode);
    }
 
    /* CPU core selection: pure interpreter (0), cached interpreter (1),
