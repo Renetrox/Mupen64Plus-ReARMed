@@ -173,7 +173,7 @@ struct retro_rumble_interface rumble;
 
 static const struct retro_subsystem_rom_info n64_cart_disk[] = {
    { "Cartridge", "n64|z64|v64|bin", false, false, false, NULL, 0 },
-   { "Disk",      "ndd|bin",         false, false, false, NULL, 0 },
+   { "Disk",      "ndd|bin", false, false, false, NULL, 0 },
    { NULL }
 };
 
@@ -1258,7 +1258,7 @@ void retro_set_environment(retro_environment_t cb)
 
 void retro_get_system_info(struct retro_system_info *info)
 {
-   info->library_name = "ParaLLEl N64";
+   info->library_name = "Mupen64Plus-ReARMed";
    info->library_version = "1.0" GIT_VERSION;
    info->valid_extensions = "n64|v64|z64|bin|u1|ndd|zip";
    /* fullpath + block_extract: the frontend hands us the file untouched, so
