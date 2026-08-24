@@ -35,8 +35,9 @@ typedef void *fz_dynlib_t;
 #define FZ_RICEFZ_FILENAME "mupen64plus-video-rice-fz.so"
 #endif
 
-static fz_dynlib_t       fz_handle = 0;
+static fz_dynlib_t        fz_handle = 0;
 static ptr_PluginShutdown fz_shutdown = NULL;
+static gfx_plugin_functions fz_cached_gfx;
 static char               fz_loaded_path[FZ_PATH_MAX];
 
 static void fz_plugin_debug(void *context, int level, const char *message)
@@ -196,9 +197,13 @@ m64p_error fz_gfx_plugin_load_rice(gfx_plugin_functions *out)
       return M64ERR_INPUT_ASSERT;
 
    if (fz_handle)
-      return M64ERR_ALREADY_INIT;
+   {
+      *out = fz_cached_gfx;
+      return M64ERR_SUCCESS;
+   }
 
    memset(out, 0, sizeof(*out));
+   memset(&fz_cached_gfx, 0, sizeof(fz_cached_gfx));
    fz_loaded_path[0] = '\0';
 
    fz_handle = fz_open_rice_library();
@@ -259,6 +264,8 @@ m64p_error fz_gfx_plugin_load_rice(gfx_plugin_functions *out)
    FZ_RESOLVE_REQUIRED(out->fBWrite, ptr_FBWrite, "FBWrite");
    FZ_RESOLVE_REQUIRED(out->fBGetFrameBufferInfo, ptr_FBGetFrameBufferInfo, "FBGetFrameBufferInfo");
 
+   fz_cached_gfx = *out;
+
    DebugMessage(M64MSG_INFO, "RiceFZ: loaded %s v%d.%d.%d from %s",
                 plugin_name ? plugin_name : "Rice FZ",
                 (plugin_version >> 16) & 0xffff,
@@ -276,6 +283,7 @@ fail:
    fz_dynlib_close(fz_handle);
    fz_handle = 0;
    fz_loaded_path[0] = '\0';
+   memset(&fz_cached_gfx, 0, sizeof(fz_cached_gfx));
    memset(out, 0, sizeof(*out));
    return M64ERR_PLUGIN_FAIL;
 }
@@ -292,6 +300,7 @@ void fz_gfx_plugin_unload(void)
    fz_dynlib_close(fz_handle);
    fz_handle = 0;
    fz_loaded_path[0] = '\0';
+   memset(&fz_cached_gfx, 0, sizeof(fz_cached_gfx));
 }
 
 int fz_gfx_plugin_is_loaded(void)
