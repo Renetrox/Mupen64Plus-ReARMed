@@ -7,11 +7,13 @@
  * Unix dynamic-library glue.
  */
 
+#include <stddef.h>
+
 #include "upstream/src/osal_dynamiclib.h"
 #include "../libretro/fz_plugin_bridge.h"
 
-m64p_function osal_dynlib_getproc(m64p_dynlib_handle LibHandle,
-                                  const char *pccProcedureName)
+void *osal_dynlib_getproc(m64p_dynlib_handle LibHandle,
+                          const char *pccProcedureName)
 {
    const struct fz_plugin_core_bridge *bridge =
       (const struct fz_plugin_core_bridge *) LibHandle;
