@@ -27,6 +27,12 @@ struct fz_plugin_core_bridge
  */
 const struct fz_plugin_core_bridge *fz_plugin_bridge_get(void);
 
+/* External standalone plugins issue raw OpenGL calls rather than GLSM's rgl*
+ * wrappers. Bind RetroArch's current HW-render FBO with the raw GL entry point
+ * before handing control to such a plugin, otherwise it renders directly into
+ * framebuffer 0 (the frontend window) instead of the libretro render target. */
+void fz_plugin_bridge_bind_current_framebuffer(void);
+
 #ifdef __cplusplus
 }
 #endif
