@@ -303,6 +303,15 @@ SOURCES_CXX += $(VIDEODIR_RICE)/Blender.cpp \
             $(VIDEODIR_RICE)/Video.cpp
 endif
 
+# Rice FZ external sidecar runtime bridge. The renderer itself remains a
+# separate shared library; only the small loader/ABI bridge is linked here.
+ifeq ($(HAVE_OPENGL),1)
+CFLAGS   += -DHAVE_RICEFZ
+CXXFLAGS += -DHAVE_RICEFZ
+SOURCES_C += $(CORE_DIR)/src/plugin/fz_plugin_bridge.c \
+             $(CORE_DIR)/src/plugin/fz_gfx_plugin.c
+endif
+
 # Libretro
 
 ifeq ($(HAVE_OPENGL),1)

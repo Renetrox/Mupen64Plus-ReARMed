@@ -42,6 +42,9 @@
 #include "main/version.h"
 #include "osal/dynamiclib.h"
 #include "plugin.h"
+#ifdef HAVE_RICEFZ
+#include "fz_gfx_plugin.h"
+#endif
 #include "mupen64plus-next_common.h"
 
 #include <stdio.h>
@@ -431,6 +434,19 @@ void plugin_connect_all()
        case RDP_PLUGIN_RICE:
 #ifdef HAVE_RICE
           gfx = gfx_rice;
+#endif
+          break;
+       case RDP_PLUGIN_RICEFZ:
+#ifdef HAVE_RICEFZ
+          if (fz_gfx_plugin_load_rice(&gfx) != M64ERR_SUCCESS)
+          {
+#ifdef HAVE_RICE
+             DebugMessage(M64MSG_ERROR, "RiceFZ: load failed; using built-in Rice fallback");
+             gfx = gfx_rice;
+#else
+             DebugMessage(M64MSG_ERROR, "RiceFZ: load failed and no built-in Rice fallback exists");
+#endif
+          }
 #endif
           break;
        case RDP_PLUGIN_GLN64:

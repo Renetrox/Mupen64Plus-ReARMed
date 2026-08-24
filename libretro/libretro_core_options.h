@@ -1033,6 +1033,9 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { "glide64", NULL },
             { "gln64", NULL },
             { "rice", NULL },
+#ifdef HAVE_RICEFZ
+            { "ricefz", "Rice FZ (Experimental)" },
+#endif
 #endif
             { "angrylion", NULL },
 #ifdef HAVE_PARALLEL

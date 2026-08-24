@@ -1,0 +1,4 @@
+Repository: https://github.com/fzurita/mupen64plus-ae.git
+Branch: fz-master
+Commit: f3c381bcc58e4adce897aba323193d3f407e30e3
+Imported: 2026-08-24T12:36:58Z

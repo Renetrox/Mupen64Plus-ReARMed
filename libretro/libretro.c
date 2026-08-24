@@ -33,6 +33,9 @@ uint8_t* g_dd_disk;
 
 #include "api/m64p_frontend.h"
 #include "plugin/plugin.h"
+#ifdef HAVE_RICEFZ
+#include "plugin/fz_gfx_plugin.h"
+#endif
 #include "api/m64p_types.h"
 /* region 14 / Phase 2d (increment 9): mupencorestop is aliased to
  * g_dev.r4300.new_dynarec_hot_state.stop on x64 (see r4300.h); this TU uses it,
@@ -52,6 +55,9 @@ uint8_t* g_dd_disk;
 #include "main/rom.h"
 #include "libretro_memory.h"
 #include "libretro_core_options.h"
+#ifdef HAVE_RICEFZ
+#include "fz_plugin_bridge.h"
+#endif
 
 /* Cxd4 RSP */
 #include "../mupen64plus-rsp-cxd4/config.h"
@@ -580,6 +586,10 @@ static void core_settings_set_defaults(void)
       if (gfx_var.value && !strcmp(gfx_var.value, "rice") && gl_inited)
          gfx_plugin = GFX_RICE;
 #endif
+#ifdef HAVE_RICEFZ
+      if (gfx_var.value && !strcmp(gfx_var.value, "ricefz") && gl_inited)
+         gfx_plugin = GFX_RICEFZ;
+#endif
 #ifdef HAVE_GLIDE64
       if(gfx_var.value && !strcmp(gfx_var.value, "glide64") && gl_inited)
          gfx_plugin = GFX_GLIDE64;
@@ -1034,6 +1044,14 @@ static void present_frame(void)
             /* the E90 sprite chip draws mtetrisc's playfield; the hardware
              * renderers leave the frame on the GPU, so it is composited there */
             aleck64_e90_gl_draw(screen_width, screen_height);
+#ifdef HAVE_RICEFZ
+            /* RiceFZ frontend viewport restore test: the external plugin uses
+             * raw glViewport(), so GLSM cannot know it dirtied the frontend's
+             * viewport. Restore RetroArch's saved viewport only at the final
+             * presentation boundary; Rice still renders internally at 640x480. */
+            if (gfx_plugin == GFX_RICEFZ)
+               fz_plugin_bridge_restore_frontend_viewport();
+#endif
             video_cb(RETRO_HW_FRAME_BUFFER_VALID, screen_width, screen_height, 0);
 #elif defined(HAVE_THR_AL)
             video_cb((screen_pitch == 0) ? NULL : prescale, screen_width, screen_height, screen_pitch);
@@ -1095,6 +1113,7 @@ static void emu_step_initialize(void)
       case GFX_PARALLEL:  current_rdp_type = RDP_PLUGIN_PARALLEL;  break;
       case GFX_GLIDEN64:  current_rdp_type = RDP_PLUGIN_GLIDEN64;  break;
       case GFX_RICE:      current_rdp_type = RDP_PLUGIN_RICE;      break;
+      case GFX_RICEFZ:    current_rdp_type = RDP_PLUGIN_RICEFZ;    break;
       case GFX_GLN64:     current_rdp_type = RDP_PLUGIN_GLN64;     break;
       case GFX_GLIDE64:   current_rdp_type = RDP_PLUGIN_GLIDE64;   break;
       default:            current_rdp_type = RDP_PLUGIN_GLIDEN64;  break;
@@ -1145,6 +1164,11 @@ void reinit_gfx_plugin(void)
           gliden64RomClosed();
           gliden64RomOpen();
 #endif
+          break;
+       case GFX_RICEFZ:
+          /* The external plugin is opened by plugin_connect_all() and its
+           * RomOpen is driven by main_run(), exactly like a normal Mupen64Plus
+           * video plugin. Do not double-open it from the context-reset path. */
           break;
        case GFX_RICE:
 #ifdef HAVE_RICE
@@ -1533,6 +1557,9 @@ void retro_deinit(void)
 {
    mupen_main_stop();
    mupen_main_exit();
+#ifdef HAVE_RICEFZ
+   fz_gfx_plugin_unload();
+#endif
 
    deinit_audio_libretro();
 
@@ -1584,6 +1611,9 @@ static void gfx_set_filtering(void)
            /* TODO/FIXME */
 #endif
            break;
+        case GFX_RICEFZ:
+           /* FZ Rice reads its own configuration through the M64P bridge. */
+           break;
         case GFX_PARALLEL:
 #ifdef HAVE_PARALLEL
            /* Stub */
@@ -1628,6 +1658,8 @@ static void gfx_set_dithering(void)
 #ifdef HAVE_RICE
          /* Stub */
 #endif
+         break;
+      case GFX_RICEFZ:
          break;
       case GFX_PARALLEL:
          break;
@@ -1950,7 +1982,7 @@ void update_variables(bool startup)
 
       if (var.value)
       {
-#if defined(HAVE_GLN64) || defined(HAVE_GLIDEN64) || defined(HAVE_RICE) || defined(HAVE_GLIDE64) || defined(HAVE_THR_AL) || defined(HAVE_PARALLEL)
+#if defined(HAVE_GLN64) || defined(HAVE_GLIDEN64) || defined(HAVE_RICE) || defined(HAVE_RICEFZ) || defined(HAVE_GLIDE64) || defined(HAVE_THR_AL) || defined(HAVE_PARALLEL)
          // TODO: This logic seems wrong?
          if (!strcmp(var.value, "auto"))
 #ifdef HAVE_GLN64
@@ -1964,6 +1996,10 @@ void update_variables(bool startup)
 #ifdef HAVE_RICE
          if (!strcmp(var.value, "rice"))
             gfx_plugin = GFX_RICE;
+#endif
+#ifdef HAVE_RICEFZ
+         if (!strcmp(var.value, "ricefz"))
+            gfx_plugin = GFX_RICEFZ;
 #endif
 #ifdef HAVE_GLIDE64
          if(!strcmp(var.value, "glide64"))
@@ -3123,7 +3159,7 @@ static void glsm_exit(void)
     * glcore with no per-frame bind. Restrict the live cycle to glide64 until the
     * gln64/rice hang is root-caused; the other GL renderers keep their prior
     * (no per-frame bind) behaviour, which is their known-good state. */
-   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE)
+   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE && gfx_plugin != GFX_RICEFZ)
       return;
    glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
 #endif
@@ -3145,7 +3181,7 @@ static void glsm_enter(void)
    /* See glsm_exit(): the live per-frame bind is restricted to glide64, the only
     * renderer it is validated to help on the gl driver. gln64 and rice hang with
     * it live, so they keep their prior no-per-frame-bind behaviour here. */
-   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE)
+   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE && gfx_plugin != GFX_RICEFZ)
       return;
    glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
 #endif
@@ -3222,6 +3258,9 @@ void retro_run (void)
                   /* Stub */
 #endif
                   break;
+               case GFX_RICEFZ:
+                  /* FZ controls its own Rice aspect-related state for now. */
+                  break;
                case GFX_GLN64:
 #ifdef HAVE_GLN64
                   /* Stub */
@@ -3275,6 +3314,7 @@ void retro_run (void)
          case GFX_GLN64:
          case GFX_GLIDEN64:
          case GFX_RICE:
+         case GFX_RICEFZ:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
             glsm_enter();
 #endif
@@ -3307,6 +3347,7 @@ void retro_run (void)
          case GFX_GLN64:
          case GFX_GLIDEN64:
          case GFX_RICE:
+         case GFX_RICEFZ:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
             glsm_exit();
 #endif

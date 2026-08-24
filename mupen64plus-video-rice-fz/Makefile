@@ -22,17 +22,33 @@ SDL_LIBS   := $(shell $(PKG_CONFIG) --libs sdl2 2>/dev/null)
 PNG_CFLAGS := $(shell $(PKG_CONFIG) --cflags libpng 2>/dev/null)
 PNG_LIBS   := $(shell $(PKG_CONFIG) --libs libpng 2>/dev/null)
 
+# Match FZ's original Unix build behaviour: desktop OpenGL is the default.
+# USE_GLES=1 is an explicit build mode for GLES targets (e.g. SBC/embedded).
+USE_GLES ?= 0
+ifeq ($(USE_GLES),1)
+GL_CFLAGS :=
+GL_LIBS   := -lGLESv2
+GL_DEFINE := -DUSE_GLES
+else
+GL_CFLAGS := $(shell $(PKG_CONFIG) --cflags gl 2>/dev/null)
+GL_LIBS   := $(shell $(PKG_CONFIG) --libs gl 2>/dev/null)
+GL_DEFINE :=
+endif
+
 CPPFLAGS += -I$(SRC) \
             -I$(ROOT)/mupen64plus-core/src/api \
             -I$(ROOT)/libretro \
-            $(SDL_CFLAGS) $(PNG_CFLAGS)
+            $(SDL_CFLAGS) $(PNG_CFLAGS) $(GL_CFLAGS)
 
-COMMON_FLAGS := -O2 -fPIC -fsigned-char -DNO_ASM -DUSE_GLES=1
+COMMON_FLAGS := -O2 -fPIC -fsigned-char -DNO_ASM $(GL_DEFINE)
 CFLAGS   += $(COMMON_FLAGS) -std=gnu11
 CXXFLAGS += $(COMMON_FLAGS) -std=c++11
 
-LDLIBS += $(SDL_LIBS) $(PNG_LIBS) -lGLESv2 -ldl -lm -pthread
-LDFLAGS += -shared
+LDLIBS += $(SDL_LIBS) $(PNG_LIBS) $(GL_LIBS) -ldl -lm -pthread
+# Fail the sidecar build if one of Rice's own translation units was omitted.
+# Shared libraries otherwise permit unresolved symbols and only expose the
+# mistake later when ReARMed dlopen()s the plugin.
+LDFLAGS += -shared -Wl,--no-undefined
 
 # Keep the exported ABI identical to a normal Mupen64Plus video plugin.
 ifneq ($(wildcard $(SRC)/video_api_export.ver),)
@@ -50,6 +66,7 @@ CXX_SOURCES := \
     $(SRC)/FrameBuffer.cpp \
     $(SRC)/GraphicsContext.cpp \
     $(SRC)/OGLCombiner.cpp \
+    $(SRC)/OGLExtensions.cpp \
     $(SRC)/OGLGraphicsContext.cpp \
     $(SRC)/OGLRender.cpp \
     $(SRC)/OGLRenderExt.cpp \
@@ -97,8 +114,11 @@ info:
 	@echo "Target:      $(TARGET)"
 	@echo "FZ source:   $(SRC)"
 	@echo "CXX:         $(CXX)"
+	@echo "USE_GLES:    $(USE_GLES)"
 	@echo "SDL cflags:  $(SDL_CFLAGS)"
 	@echo "PNG cflags:  $(PNG_CFLAGS)"
+	@echo "GL cflags:   $(GL_CFLAGS)"
+	@echo "GL libs:     $(GL_LIBS)"
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)

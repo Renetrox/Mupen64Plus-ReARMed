@@ -127,6 +127,8 @@ ifneq (,$(findstring unix,$(platform)))
    # pre-2.17 glibc and some cross toolchains; harmless on modern glibc
    # where it is in libc (the linker drops the unused -lrt).
    LDFLAGS += -lrt
+   # RiceFZ runtime sidecar uses dlopen/dlsym on Unix.
+   LDFLAGS += -ldl
 
 
 
