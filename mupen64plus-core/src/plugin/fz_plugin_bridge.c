@@ -17,6 +17,22 @@
 #include <glsm/glsm.h>
 #include "../../../libretro/fz_plugin_bridge.h"
 
+/* The current libretro config backend no longer stores per-parameter help
+ * strings, but FZ Rice requires ConfigSetParameterHelp to be present during
+ * PluginStartup and calls it while refreshing old config metadata. Keep that
+ * ABI surface bridge-local: values are handled by the real Config* functions,
+ * while help-text updates are a successful no-op. */
+static m64p_error fz_bridge_config_set_parameter_help(
+      m64p_handle ConfigSectionHandle,
+      const char *ParamName,
+      const char *ParamHelp)
+{
+   (void) ConfigSectionHandle;
+   (void) ParamName;
+   (void) ParamHelp;
+   return M64ERR_SUCCESS;
+}
+
 /* Rice FZ asks the video extension to set attributes and immediately reads
  * them back. The libretro vidext shim historically implements SetAttribute
  * as a no-op and has no GetAttribute implementation, so retain the requested
@@ -97,7 +113,8 @@ static void *fz_plugin_bridge_get_proc(const char *name)
 
    FZ_PROC(ConfigOpenSection);
    FZ_PROC(ConfigSetParameter);
-   FZ_PROC(ConfigSetParameterHelp);
+   if (strcmp(name, "ConfigSetParameterHelp") == 0)
+      return (void *) fz_bridge_config_set_parameter_help;
    FZ_PROC(ConfigGetParameter);
    FZ_PROC(ConfigSetDefaultInt);
    FZ_PROC(ConfigSetDefaultFloat);
