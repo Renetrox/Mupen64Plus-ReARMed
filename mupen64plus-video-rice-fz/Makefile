@@ -45,7 +45,10 @@ CFLAGS   += $(COMMON_FLAGS) -std=gnu11
 CXXFLAGS += $(COMMON_FLAGS) -std=c++11
 
 LDLIBS += $(SDL_LIBS) $(PNG_LIBS) $(GL_LIBS) -ldl -lm -pthread
-LDFLAGS += -shared
+# Fail the sidecar build if one of Rice's own translation units was omitted.
+# Shared libraries otherwise permit unresolved symbols and only expose the
+# mistake later when ReARMed dlopen()s the plugin.
+LDFLAGS += -shared -Wl,--no-undefined
 
 # Keep the exported ABI identical to a normal Mupen64Plus video plugin.
 ifneq ($(wildcard $(SRC)/video_api_export.ver),)
@@ -63,6 +66,7 @@ CXX_SOURCES := \
     $(SRC)/FrameBuffer.cpp \
     $(SRC)/GraphicsContext.cpp \
     $(SRC)/OGLCombiner.cpp \
+    $(SRC)/OGLExtensions.cpp \
     $(SRC)/OGLGraphicsContext.cpp \
     $(SRC)/OGLRender.cpp \
     $(SRC)/OGLRenderExt.cpp \
