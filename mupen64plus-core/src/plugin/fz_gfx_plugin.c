@@ -35,10 +35,71 @@ typedef void *fz_dynlib_t;
 #define FZ_RICEFZ_FILENAME "mupen64plus-video-rice-fz.so"
 #endif
 
-static fz_dynlib_t        fz_handle = 0;
-static ptr_PluginShutdown fz_shutdown = NULL;
+static fz_dynlib_t          fz_handle = 0;
+static ptr_PluginShutdown   fz_shutdown = NULL;
 static gfx_plugin_functions fz_cached_gfx;
-static char               fz_loaded_path[FZ_PATH_MAX];
+static char                 fz_loaded_path[FZ_PATH_MAX];
+
+/* Raw RiceFZ entry points that may touch the active framebuffer. The public
+ * gfx table receives small ReARMed trampolines instead, so every draw/read
+ * starts with RetroArch's HW-render FBO bound in the real GL context. */
+static ptr_RomOpen        fz_raw_rom_open = NULL;
+static ptr_ProcessDList   fz_raw_process_dlist = NULL;
+static ptr_ProcessRDPList fz_raw_process_rdp_list = NULL;
+static ptr_ShowCFB        fz_raw_show_cfb = NULL;
+static ptr_UpdateScreen   fz_raw_update_screen = NULL;
+static ptr_ReadScreen2    fz_raw_read_screen = NULL;
+
+static int fz_rice_rom_open(void)
+{
+   fz_plugin_bridge_bind_current_framebuffer();
+   return fz_raw_rom_open ? fz_raw_rom_open() : 0;
+}
+
+static void fz_rice_process_dlist(void)
+{
+   fz_plugin_bridge_bind_current_framebuffer();
+   if (fz_raw_process_dlist)
+      fz_raw_process_dlist();
+}
+
+static void fz_rice_process_rdp_list(void)
+{
+   fz_plugin_bridge_bind_current_framebuffer();
+   if (fz_raw_process_rdp_list)
+      fz_raw_process_rdp_list();
+}
+
+static void fz_rice_show_cfb(void)
+{
+   fz_plugin_bridge_bind_current_framebuffer();
+   if (fz_raw_show_cfb)
+      fz_raw_show_cfb();
+}
+
+static void fz_rice_update_screen(void)
+{
+   fz_plugin_bridge_bind_current_framebuffer();
+   if (fz_raw_update_screen)
+      fz_raw_update_screen();
+}
+
+static void fz_rice_read_screen(void *dest, int *width, int *height, int front)
+{
+   fz_plugin_bridge_bind_current_framebuffer();
+   if (fz_raw_read_screen)
+      fz_raw_read_screen(dest, width, height, front);
+}
+
+static void fz_clear_raw_gfx(void)
+{
+   fz_raw_rom_open = NULL;
+   fz_raw_process_dlist = NULL;
+   fz_raw_process_rdp_list = NULL;
+   fz_raw_show_cfb = NULL;
+   fz_raw_update_screen = NULL;
+   fz_raw_read_screen = NULL;
+}
 
 static void fz_plugin_debug(void *context, int level, const char *message)
 {
@@ -204,6 +265,7 @@ m64p_error fz_gfx_plugin_load_rice(gfx_plugin_functions *out)
 
    memset(out, 0, sizeof(*out));
    memset(&fz_cached_gfx, 0, sizeof(fz_cached_gfx));
+   fz_clear_raw_gfx();
    fz_loaded_path[0] = '\0';
 
    fz_handle = fz_open_rice_library();
@@ -249,20 +311,27 @@ m64p_error fz_gfx_plugin_load_rice(gfx_plugin_functions *out)
    FZ_RESOLVE_REQUIRED(out->changeWindow, ptr_ChangeWindow, "ChangeWindow");
    FZ_RESOLVE_REQUIRED(out->initiateGFX, ptr_InitiateGFX, "InitiateGFX");
    FZ_RESOLVE_REQUIRED(out->moveScreen, ptr_MoveScreen, "MoveScreen");
-   FZ_RESOLVE_REQUIRED(out->processDList, ptr_ProcessDList, "ProcessDList");
-   FZ_RESOLVE_REQUIRED(out->processRDPList, ptr_ProcessRDPList, "ProcessRDPList");
+   FZ_RESOLVE_REQUIRED(fz_raw_process_dlist, ptr_ProcessDList, "ProcessDList");
+   FZ_RESOLVE_REQUIRED(fz_raw_process_rdp_list, ptr_ProcessRDPList, "ProcessRDPList");
    FZ_RESOLVE_REQUIRED(out->romClosed, ptr_RomClosed, "RomClosed");
-   FZ_RESOLVE_REQUIRED(out->romOpen, ptr_RomOpen, "RomOpen");
-   FZ_RESOLVE_REQUIRED(out->showCFB, ptr_ShowCFB, "ShowCFB");
-   FZ_RESOLVE_REQUIRED(out->updateScreen, ptr_UpdateScreen, "UpdateScreen");
+   FZ_RESOLVE_REQUIRED(fz_raw_rom_open, ptr_RomOpen, "RomOpen");
+   FZ_RESOLVE_REQUIRED(fz_raw_show_cfb, ptr_ShowCFB, "ShowCFB");
+   FZ_RESOLVE_REQUIRED(fz_raw_update_screen, ptr_UpdateScreen, "UpdateScreen");
    FZ_RESOLVE_REQUIRED(out->viStatusChanged, ptr_ViStatusChanged, "ViStatusChanged");
    FZ_RESOLVE_REQUIRED(out->viWidthChanged, ptr_ViWidthChanged, "ViWidthChanged");
-   FZ_RESOLVE_REQUIRED(out->readScreen, ptr_ReadScreen2, "ReadScreen2");
+   FZ_RESOLVE_REQUIRED(fz_raw_read_screen, ptr_ReadScreen2, "ReadScreen2");
    FZ_RESOLVE_REQUIRED(out->setRenderingCallback, ptr_SetRenderingCallback, "SetRenderingCallback");
    FZ_RESOLVE_REQUIRED(out->resizeVideoOutput, ptr_ResizeVideoOutput, "ResizeVideoOutput");
    FZ_RESOLVE_REQUIRED(out->fBRead, ptr_FBRead, "FBRead");
    FZ_RESOLVE_REQUIRED(out->fBWrite, ptr_FBWrite, "FBWrite");
    FZ_RESOLVE_REQUIRED(out->fBGetFrameBufferInfo, ptr_FBGetFrameBufferInfo, "FBGetFrameBufferInfo");
+
+   out->romOpen = fz_rice_rom_open;
+   out->processDList = fz_rice_process_dlist;
+   out->processRDPList = fz_rice_process_rdp_list;
+   out->showCFB = fz_rice_show_cfb;
+   out->updateScreen = fz_rice_update_screen;
+   out->readScreen = fz_rice_read_screen;
 
    fz_cached_gfx = *out;
 
@@ -283,6 +352,7 @@ fail:
    fz_dynlib_close(fz_handle);
    fz_handle = 0;
    fz_loaded_path[0] = '\0';
+   fz_clear_raw_gfx();
    memset(&fz_cached_gfx, 0, sizeof(fz_cached_gfx));
    memset(out, 0, sizeof(*out));
    return M64ERR_PLUGIN_FAIL;
@@ -300,6 +370,7 @@ void fz_gfx_plugin_unload(void)
    fz_dynlib_close(fz_handle);
    fz_handle = 0;
    fz_loaded_path[0] = '\0';
+   fz_clear_raw_gfx();
    memset(&fz_cached_gfx, 0, sizeof(fz_cached_gfx));
 }
 
