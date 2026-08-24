@@ -7,12 +7,14 @@
  * isolation and instead passes this explicit resolver as CoreLibHandle.
  */
 
+#include <stddef.h>
 #include <string.h>
 
 #define M64P_CORE_PROTOTYPES 1
 #include "../api/m64p_common.h"
 #include "../api/m64p_config.h"
 #include "../api/m64p_vidext.h"
+#include <glsm/glsm.h>
 #include "../../../libretro/fz_plugin_bridge.h"
 
 /* Rice FZ asks the video extension to set attributes and immediately reads
@@ -72,13 +74,24 @@ static m64p_error fz_bridge_gl_get_attribute(m64p_GLattr attr, int *value)
    return M64ERR_SUCCESS;
 }
 
-static m64p_function fz_plugin_bridge_get_proc(const char *name)
+/* The legacy vidext_libretro implementation currently asks GLSM for the proc
+ * callback with a NULL data pointer and then dereferences an untouched local
+ * callback. Keep that historical path unchanged for the built-in renderers;
+ * external FZ plugins get the correct GLSM resolver through this bridge. */
+static void *fz_bridge_gl_get_proc_address(const char *proc)
+{
+   if (!proc)
+      return NULL;
+   return glsm_get_proc_address(proc);
+}
+
+static void *fz_plugin_bridge_get_proc(const char *name)
 {
    if (!name)
       return NULL;
 
 #define FZ_PROC(symbol) \
-   if (strcmp(name, #symbol) == 0) return (m64p_function) symbol
+   if (strcmp(name, #symbol) == 0) return (void *) symbol
 
    FZ_PROC(CoreGetAPIVersions);
 
@@ -106,11 +119,12 @@ static m64p_function fz_plugin_bridge_get_proc(const char *name)
    FZ_PROC(VidExt_SetCaption);
    FZ_PROC(VidExt_ToggleFullScreen);
    FZ_PROC(VidExt_ResizeWindow);
-   FZ_PROC(VidExt_GL_GetProcAddress);
+   if (strcmp(name, "VidExt_GL_GetProcAddress") == 0)
+      return (void *) fz_bridge_gl_get_proc_address;
    if (strcmp(name, "VidExt_GL_SetAttribute") == 0)
-      return (m64p_function) fz_bridge_gl_set_attribute;
+      return (void *) fz_bridge_gl_set_attribute;
    if (strcmp(name, "VidExt_GL_GetAttribute") == 0)
-      return (m64p_function) fz_bridge_gl_get_attribute;
+      return (void *) fz_bridge_gl_get_attribute;
    FZ_PROC(VidExt_GL_SwapBuffers);
 
 #undef FZ_PROC
