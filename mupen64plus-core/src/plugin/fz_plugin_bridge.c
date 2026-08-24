@@ -58,14 +58,7 @@ static m64p_error fz_bridge_core_get_api_versions(
    return M64ERR_SUCCESS;
 }
 
-/* Diagnostic bookkeeping for the standalone-plugin/libretro video boundary.
- * Rice asks Mupen64Plus for a video mode; libretro does not create a new
- * window here, so remember the requested size and compare it with the actual
- * frontend FBO + GL viewport when the external renderer starts drawing. */
-static int fz_requested_video_width = 0;
-static int fz_requested_video_height = 0;
-
-/* RiceFZ frontend viewport restore test.
+/* Frontend viewport state for the external FZ renderer.
  *
  * A standalone Mupen64Plus video plugin expects VidExt_SetVideoMode() to make
  * its requested 640x480 mode the whole drawable window.  libretro deliberately
@@ -76,7 +69,7 @@ static int fz_requested_video_height = 0;
 static int fz_frontend_viewport[4] = { 0, 0, 0, 0 };
 static int fz_frontend_viewport_valid = 0;
 
-/* RiceFZ frontend scissor restore test.
+/* Frontend scissor state for the external FZ renderer.
  * Standalone Rice enables GL_SCISSOR_TEST and leaves a 640x480-ish scissor
  * box active.  That state belongs to Rice's drawable, not RetroArch's
  * compositor, so save the frontend state before Rice starts touching GL. */
@@ -124,13 +117,6 @@ static void fz_bridge_capture_frontend_viewport(void)
    fz_frontend_scissor_enabled = is_enabled ? (is_enabled(0x0C11u) ? 1 : 0) : 0;
    fz_frontend_scissor_valid = 1;
 
-   DebugMessage(M64MSG_INFO,
-         "RiceFZ bridge viewport: captured frontend=%d,%d %dx%d",
-         viewport[0], viewport[1], viewport[2], viewport[3]);
-   DebugMessage(M64MSG_INFO,
-         "RiceFZ bridge scissor restore: captured enabled=%d box=%d,%d %dx%d",
-         fz_frontend_scissor_enabled,
-         scissor[0], scissor[1], scissor[2], scissor[3]);
 #endif
 }
 
@@ -138,12 +124,6 @@ static m64p_error fz_bridge_set_video_mode(int Width, int Height,
       int BitsPerPixel, m64p_video_mode ScreenMode, m64p_video_flags Flags)
 {
    fz_bridge_capture_frontend_viewport();
-   fz_requested_video_width = Width;
-   fz_requested_video_height = Height;
-
-   DebugMessage(M64MSG_INFO,
-         "RiceFZ bridge diag: requested video mode=%dx%d bpp=%d",
-         Width, Height, BitsPerPixel);
 
    return VidExt_SetVideoMode(Width, Height, BitsPerPixel, ScreenMode, Flags);
 }
@@ -216,52 +196,10 @@ static void *fz_bridge_gl_get_proc_address(const char *proc)
    return glsm_get_proc_address(proc);
 }
 
-/* Diagnostic wrapper around the standalone plugin's swap request. This is the
- * last point inside RiceFZ before control returns to the libretro timing path,
- * so it tells us which raw GL viewport/FBO Rice leaves behind for RetroArch. */
+/* Route the standalone plugin's swap request through the libretro
+ * video-extension timing path. */
 static m64p_error fz_bridge_gl_swap_buffers(void)
 {
-#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-   typedef void (*fz_get_integerv_t)(unsigned int, int *);
-   typedef unsigned char (*fz_is_enabled_t)(unsigned int);
-   static fz_get_integerv_t get_integerv = NULL;
-   static fz_is_enabled_t is_enabled = NULL;
-   static unsigned int swap_diag_count = 0;
-   int framebuffer = -1;
-   int viewport[4] = { -1, -1, -1, -1 };
-   int scissor_box[4] = { -1, -1, -1, -1 };
-   int scissor_enabled = -1;
-
-   if (!get_integerv)
-      get_integerv = (fz_get_integerv_t)
-         glsm_get_proc_address("glGetIntegerv");
-   if (!is_enabled)
-      is_enabled = (fz_is_enabled_t)
-         glsm_get_proc_address("glIsEnabled");
-
-   if (get_integerv && swap_diag_count < 8)
-   {
-      /* GL_FRAMEBUFFER_BINDING = 0x8CA6, GL_VIEWPORT = 0x0BA2. */
-      get_integerv(0x8CA6u, &framebuffer);
-      get_integerv(0x0BA2u, viewport);
-      /* GL_SCISSOR_BOX = 0x0C10, GL_SCISSOR_TEST = 0x0C11. */
-      get_integerv(0x0C10u, scissor_box);
-      if (is_enabled)
-         scissor_enabled = is_enabled(0x0C11u) ? 1 : 0;
-
-      DebugMessage(M64MSG_INFO,
-            "RiceFZ bridge swap diag: call=%u fbo=%d viewport=%d,%d %dx%d requested=%dx%d",
-            swap_diag_count + 1, framebuffer,
-            viewport[0], viewport[1], viewport[2], viewport[3],
-            fz_requested_video_width, fz_requested_video_height);
-      DebugMessage(M64MSG_INFO,
-            "RiceFZ bridge scissor diag: call=%u enabled=%d box=%d,%d %dx%d",
-            swap_diag_count + 1, scissor_enabled,
-            scissor_box[0], scissor_box[1], scissor_box[2], scissor_box[3]);
-      swap_diag_count++;
-   }
-#endif
-
    return VidExt_GL_SwapBuffers();
 }
 
@@ -448,25 +386,6 @@ static void fz_save_rice_gl_state(void)
       for (i = 0; i < FZ_RICE_ATTRIBS; i++)
          disable_attrib(i);
 
-   DebugMessage(M64MSG_INFO,
-      "RiceFZ two-way: saved viewport=%d,%d %dx%d attrib=%d%d%d%d%d tex=%d,%d cull=%d mode=0x%x front=0x%x depth=%d func=0x%x mask=%d",
-      fz_saved_rice_viewport[0],
-      fz_saved_rice_viewport[1],
-      fz_saved_rice_viewport[2],
-      fz_saved_rice_viewport[3],
-      fz_saved_rice_attrib[0].enabled,
-      fz_saved_rice_attrib[1].enabled,
-      fz_saved_rice_attrib[2].enabled,
-      fz_saved_rice_attrib[3].enabled,
-      fz_saved_rice_attrib[4].enabled,
-      fz_saved_rice_texture[0],
-      fz_saved_rice_texture[1],
-      fz_saved_rice_cull_enabled,
-      fz_saved_rice_cull_face_mode,
-      fz_saved_rice_front_face,
-      fz_saved_rice_depth_test_enabled,
-      fz_saved_rice_depth_func,
-      fz_saved_rice_depth_mask);
 
 #endif
 }
@@ -508,7 +427,6 @@ static void fz_restore_rice_gl_state(void)
    static attrib_enable_t enable_attrib = NULL;
    static attrib_enable_t disable_attrib = NULL;
 
-   static unsigned restore_count = 0;
    int i;
 
    if (!fz_saved_rice_valid || !fz_restore_rice_pending)
@@ -675,23 +593,6 @@ static void fz_restore_rice_gl_state(void)
 
    fz_restore_rice_pending = 0;
 
-   if (restore_count < 8)
-   {
-      DebugMessage(M64MSG_INFO,
-         "RiceFZ two-way: restored=%u viewport=%d,%d %dx%d attrib=%d%d%d%d%d",
-         restore_count + 1,
-         fz_saved_rice_viewport[0],
-         fz_saved_rice_viewport[1],
-         fz_saved_rice_viewport[2],
-         fz_saved_rice_viewport[3],
-         fz_saved_rice_attrib[0].enabled,
-         fz_saved_rice_attrib[1].enabled,
-         fz_saved_rice_attrib[2].enabled,
-         fz_saved_rice_attrib[3].enabled,
-         fz_saved_rice_attrib[4].enabled);
-
-      restore_count++;
-   }
 
 #endif
 }
@@ -707,7 +608,6 @@ void fz_plugin_bridge_restore_frontend_viewport(void)
    typedef void (*fz_bind_texture_t)(unsigned int, unsigned int);
    typedef void (*fz_use_program_t)(unsigned int);
    typedef void (*fz_bind_buffer_t)(unsigned int, unsigned int);
-   typedef void (*fz_get_integerv_t)(unsigned int, int *);
    static fz_viewport_t viewport_fn = NULL;
    static fz_scissor_t scissor_fn = NULL;
    static fz_cap_t enable_fn = NULL;
@@ -716,8 +616,6 @@ void fz_plugin_bridge_restore_frontend_viewport(void)
    static fz_bind_texture_t bind_texture_fn = NULL;
    static fz_use_program_t use_program_fn = NULL;
    static fz_bind_buffer_t bind_buffer_fn = NULL;
-   static fz_get_integerv_t get_integerv_fn = NULL;
-   static unsigned int restore_count = 0;
 
    if (!fz_frontend_viewport_valid)
       return;
@@ -742,9 +640,6 @@ void fz_plugin_bridge_restore_frontend_viewport(void)
    if (!bind_buffer_fn)
       bind_buffer_fn = (fz_bind_buffer_t)
          glsm_get_proc_address("glBindBuffer");
-   if (!get_integerv_fn)
-      get_integerv_fn = (fz_get_integerv_t)
-         glsm_get_proc_address("glGetIntegerv");
    if (!viewport_fn)
       return;
 
@@ -761,35 +656,7 @@ void fz_plugin_bridge_restore_frontend_viewport(void)
          disable_fn(0x0C11u);
    }
 
-   /* RiceFZ vertex-attrib diagnostic. */
-   {
-      typedef void (*fz_get_vertex_attrib_iv_t)(unsigned int, unsigned int, int *);
-      static fz_get_vertex_attrib_iv_t get_vertex_attrib_iv = NULL;
-      static unsigned int attrib_diag_count = 0;
-
-      if (!get_vertex_attrib_iv)
-         get_vertex_attrib_iv = (fz_get_vertex_attrib_iv_t)
-            glsm_get_proc_address("glGetVertexAttribiv");
-
-      if (get_vertex_attrib_iv && attrib_diag_count < 8)
-      {
-         int e[8] = {0};
-         int i;
-
-         /* GL_VERTEX_ATTRIB_ARRAY_ENABLED = 0x8622 */
-         for (i = 0; i < 8; i++)
-            get_vertex_attrib_iv((unsigned int)i, 0x8622u, &e[i]);
-
-         DebugMessage(M64MSG_INFO,
-            "RiceFZ bridge attrib state: call=%u enabled=%d%d%d%d%d%d%d%d",
-            attrib_diag_count + 1,
-            e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
-
-         attrib_diag_count++;
-      }
-   }
-
-   /* RiceFZ frontend raw-GL cleanup test.
+   /* Frontend raw-GL cleanup.
     *
     * The external FZ plugin calls desktop OpenGL directly, bypassing GLSM's
     * state cache. GLSM's normal unbind therefore cannot know which Rice
@@ -800,32 +667,6 @@ void fz_plugin_bridge_restore_frontend_viewport(void)
    {
       int unit;
 
-      if (get_integerv_fn && restore_count < 8)
-      {
-         int program = -1;
-         int active = -1;
-         int tex0 = -1;
-         int tex1 = -1;
-         int array_buffer = -1;
-         int element_buffer = -1;
-
-         /* GL_CURRENT_PROGRAM=0x8B8D, GL_ACTIVE_TEXTURE=0x84E0,
-          * GL_TEXTURE_BINDING_2D=0x8069, GL_ARRAY_BUFFER_BINDING=0x8894,
-          * GL_ELEMENT_ARRAY_BUFFER_BINDING=0x8895. */
-         get_integerv_fn(0x8B8Du, &program);
-         get_integerv_fn(0x84E0u, &active);
-         active_texture_fn(0x84C0u); /* GL_TEXTURE0 */
-         get_integerv_fn(0x8069u, &tex0);
-         active_texture_fn(0x84C1u); /* GL_TEXTURE1 */
-         get_integerv_fn(0x8069u, &tex1);
-         active_texture_fn((unsigned int) active);
-         get_integerv_fn(0x8894u, &array_buffer);
-         get_integerv_fn(0x8895u, &element_buffer);
-
-         DebugMessage(M64MSG_INFO,
-               "RiceFZ bridge raw state: before cleanup program=%d active=0x%x tex0=%d tex1=%d array=%d element=%d",
-               program, active, tex0, tex1, array_buffer, element_buffer);
-      }
 
       /* FZ Rice caps the renderer to at most 8 texture units. */
       for (unit = 0; unit < 8; unit++)
@@ -844,40 +685,7 @@ void fz_plugin_bridge_restore_frontend_viewport(void)
       bind_buffer_fn(0x8893u, 0); /* GL_ELEMENT_ARRAY_BUFFER */
    }
 
-   if (get_integerv_fn && restore_count < 8)
-   {
-      int program = -1;
-      int active = -1;
-      int tex0 = -1;
-      int array_buffer = -1;
-      int element_buffer = -1;
 
-      get_integerv_fn(0x8B8Du, &program);
-      get_integerv_fn(0x84E0u, &active);
-      get_integerv_fn(0x8069u, &tex0);
-      get_integerv_fn(0x8894u, &array_buffer);
-      get_integerv_fn(0x8895u, &element_buffer);
-
-      DebugMessage(M64MSG_INFO,
-            "RiceFZ bridge raw state: after cleanup program=%d active=0x%x tex0=%d array=%d element=%d",
-            program, active, tex0, array_buffer, element_buffer);
-   }
-
-   if (restore_count < 8)
-   {
-      DebugMessage(M64MSG_INFO,
-            "RiceFZ bridge viewport: restore=%u frontend=%d,%d %dx%d",
-            restore_count + 1,
-            fz_frontend_viewport[0], fz_frontend_viewport[1],
-            fz_frontend_viewport[2], fz_frontend_viewport[3]);
-      DebugMessage(M64MSG_INFO,
-            "RiceFZ bridge scissor restore: restore=%u enabled=%d box=%d,%d %dx%d",
-            restore_count + 1,
-            fz_frontend_scissor_enabled,
-            fz_frontend_scissor_box[0], fz_frontend_scissor_box[1],
-            fz_frontend_scissor_box[2], fz_frontend_scissor_box[3]);
-      restore_count++;
-   }
 #endif
 }
 
@@ -885,63 +693,31 @@ void fz_plugin_bridge_bind_current_framebuffer(void)
 {
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
    typedef void (*fz_bind_framebuffer_t)(unsigned int, unsigned int);
-   typedef void (*fz_get_integerv_t)(unsigned int, int *);
    static fz_bind_framebuffer_t bind_framebuffer = NULL;
-   static fz_get_integerv_t get_integerv = NULL;
-   static unsigned int diag_count = 0;
    unsigned int framebuffer;
-   int bound_before = -1;
-   int bound_after = -1;
-   int viewport[4] = { -1, -1, -1, -1 };
 
    if (!bind_framebuffer)
    {
       bind_framebuffer = (fz_bind_framebuffer_t)
          glsm_get_proc_address("glBindFramebuffer");
+
       if (!bind_framebuffer)
          bind_framebuffer = (fz_bind_framebuffer_t)
             glsm_get_proc_address("glBindFramebufferEXT");
+
       if (!bind_framebuffer)
          bind_framebuffer = (fz_bind_framebuffer_t)
             glsm_get_proc_address("glBindFramebufferOES");
    }
 
-   if (!get_integerv)
-      get_integerv = (fz_get_integerv_t)
-         glsm_get_proc_address("glGetIntegerv");
-
    if (!bind_framebuffer)
       return;
 
-   /* GL_FRAMEBUFFER_BINDING[_EXT] = 0x8CA6, GL_VIEWPORT = 0x0BA2. */
-   if (get_integerv)
-      get_integerv(0x8CA6u, &bound_before);
-
    framebuffer = (unsigned int) glsm_get_current_framebuffer();
-   bind_framebuffer(0x8D40u, framebuffer);
+   bind_framebuffer(0x8D40u, framebuffer); /* GL_FRAMEBUFFER */
 
-   if (get_integerv)
-   {
-      get_integerv(0x8CA6u, &bound_after);
-      get_integerv(0x0BA2u, viewport);
-   }
-
-   /* RomOpen reaches this helper once before Rice has requested its mode.
-    * Start logging only after VidExt_SetVideoMode so the useful calls show the
-    * relationship between Rice's 640x480 request and the actual GL target. */
-   if (fz_requested_video_width > 0 && diag_count < 8)
-   {
-      DebugMessage(M64MSG_INFO,
-            "RiceFZ bridge diag: call=%u requested=%dx%d frontend_fbo=%u bound_before=%d bound_after=%d viewport=%d,%d %dx%d",
-            diag_count + 1,
-            fz_requested_video_width, fz_requested_video_height,
-            framebuffer, bound_before, bound_after,
-            viewport[0], viewport[1], viewport[2], viewport[3]);
-      diag_count++;
-   }
-
-   /* Frontend presentation happened since the previous Rice call.
-    * Put Rice's persistent raw-GL state back exactly once. */
+   /* Frontend presentation temporarily replaces raw state owned by the
+    * standalone renderer. Restore it once before Rice resumes rendering. */
    fz_restore_rice_gl_state();
 #endif
 }

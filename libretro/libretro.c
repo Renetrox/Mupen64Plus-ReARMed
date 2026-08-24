@@ -1045,10 +1045,9 @@ static void present_frame(void)
              * renderers leave the frame on the GPU, so it is composited there */
             aleck64_e90_gl_draw(screen_width, screen_height);
 #ifdef HAVE_RICEFZ
-            /* RiceFZ frontend viewport restore test: the external plugin uses
-             * raw glViewport(), so GLSM cannot know it dirtied the frontend's
-             * viewport. Restore RetroArch's saved viewport only at the final
-             * presentation boundary; Rice still renders internally at 640x480. */
+            /* External FZ renderers use raw OpenGL and bypass GLSM state
+             * tracking. Preserve renderer state and restore frontend state
+             * before handing the hardware frame back to RetroArch. */
             if (gfx_plugin == GFX_RICEFZ)
                fz_plugin_bridge_restore_frontend_viewport();
 #endif
