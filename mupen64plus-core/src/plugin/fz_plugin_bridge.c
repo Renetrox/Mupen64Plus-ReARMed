@@ -2,8 +2,8 @@
  * Mupen64Plus-ReARMed - bridge for external Mupen64Plus FZ plugins.
  *
  * libretro/link.T intentionally hides the embedded Mupen64Plus core API from
- * the dynamic symbol table.  FZ plugins normally receive a dlopen() handle and
- * resolve Config*/VidExt* functions with dlsym().  ReARMed keeps that symbol
+ * the dynamic symbol table. FZ plugins normally receive a dlopen() handle and
+ * resolve Config and VidExt functions with dlsym(). ReARMed keeps that symbol
  * isolation and instead passes this explicit resolver as CoreLibHandle.
  */
 
@@ -16,9 +16,9 @@
 #include "../../../libretro/fz_plugin_bridge.h"
 
 /* Rice FZ asks the video extension to set attributes and immediately reads
- * them back.  The libretro vidext shim historically implements SetAttribute
+ * them back. The libretro vidext shim historically implements SetAttribute
  * as a no-op and has no GetAttribute implementation, so retain the requested
- * values here.  This is deliberately bridge-local and does not change the
+ * values here. This is deliberately bridge-local and does not change the
  * behaviour of the existing statically linked renderers. */
 #define FZ_GL_ATTR_MAX ((int) M64P_GL_CONTEXT_PROFILE_MASK)
 static int fz_gl_attr_values[FZ_GL_ATTR_MAX + 1];
@@ -53,7 +53,7 @@ static m64p_error fz_bridge_gl_get_attribute(m64p_GLattr attr, int *value)
    }
 
    /* Conservative libretro/GLES defaults for attributes queried before an
-    * explicit SetAttribute.  FZ Rice normally sets the important ones first. */
+    * explicit SetAttribute. FZ Rice normally sets the important ones first. */
    switch (attr)
    {
       case M64P_GL_DOUBLEBUFFER:          *value = 1;  break;
