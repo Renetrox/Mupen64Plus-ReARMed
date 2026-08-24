@@ -11,7 +11,9 @@ extern "C" {
 #define FZ_PLUGIN_BRIDGE_MAGIC 0x465A4252u /* 'FZBR' */
 #define FZ_PLUGIN_BRIDGE_ABI   1u
 
-typedef m64p_function (*fz_plugin_get_proc_t)(const char *name);
+/* Match Mupen64Plus' osal_dynlib_getproc()/dlsym-style API: callers receive
+ * an opaque symbol pointer and cast it to the required function type. */
+typedef void *(*fz_plugin_get_proc_t)(const char *name);
 
 struct fz_plugin_core_bridge
 {
