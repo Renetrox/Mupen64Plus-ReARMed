@@ -33,6 +33,30 @@ static m64p_error fz_bridge_config_set_parameter_help(
    return M64ERR_SUCCESS;
 }
 
+/* ReARMed's embedded config backend still reports API 2.2.0. FZ Rice refuses
+ * to start unless Config API 2.3.0+ is reported, because that generation of
+ * the plugin expects the newer ConfigSetParameterHelp surface. The bridge
+ * supplies that call above, so advertise 2.3.0 only to external FZ plugins.
+ * Do not globally bump CONFIG_API_VERSION: the built-in libretro core keeps
+ * reporting its real native API level to every other caller. */
+static m64p_error fz_bridge_core_get_api_versions(
+      int *ConfigVersion,
+      int *DebugVersion,
+      int *VidextVersion,
+      int *ExtraVersion)
+{
+   m64p_error err = CoreGetAPIVersions(ConfigVersion, DebugVersion,
+                                       VidextVersion, ExtraVersion);
+
+   if (err != M64ERR_SUCCESS)
+      return err;
+
+   if (ConfigVersion != NULL && *ConfigVersion < 0x020300)
+      *ConfigVersion = 0x020300;
+
+   return M64ERR_SUCCESS;
+}
+
 /* Rice FZ asks the video extension to set attributes and immediately reads
  * them back. The libretro vidext shim historically implements SetAttribute
  * as a no-op and has no GetAttribute implementation, so retain the requested
@@ -109,7 +133,8 @@ static void *fz_plugin_bridge_get_proc(const char *name)
 #define FZ_PROC(symbol) \
    if (strcmp(name, #symbol) == 0) return (void *) symbol
 
-   FZ_PROC(CoreGetAPIVersions);
+   if (strcmp(name, "CoreGetAPIVersions") == 0)
+      return (void *) fz_bridge_core_get_api_versions;
 
    FZ_PROC(ConfigOpenSection);
    FZ_PROC(ConfigSetParameter);
