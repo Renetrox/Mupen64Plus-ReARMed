@@ -125,6 +125,43 @@ static void *fz_bridge_gl_get_proc_address(const char *proc)
    return glsm_get_proc_address(proc);
 }
 
+/* Standalone Mupen64Plus plugins render with raw OpenGL entry points. GLSM's
+ * state manager, on the other hand, redirects the built-in renderers to the
+ * framebuffer supplied by RetroArch. A raw external plugin therefore sees
+ * framebuffer 0 unless we explicitly bind the libretro target. This helper is
+ * called by the RiceFZ loader immediately before every entry point that may
+ * draw or read the current frame.
+ *
+ * Use the raw frontend GL proc here as well: calling an rgl/glsm wrapper would
+ * only update GLSM's cached state, which is precisely what the external plugin
+ * bypasses. GL_FRAMEBUFFER is 0x8D40 for core/ARB/EXT/OES FBO APIs. */
+void fz_plugin_bridge_bind_current_framebuffer(void)
+{
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
+   typedef void (*fz_bind_framebuffer_t)(unsigned int, unsigned int);
+   static fz_bind_framebuffer_t bind_framebuffer = NULL;
+   unsigned int framebuffer;
+
+   if (!bind_framebuffer)
+   {
+      bind_framebuffer = (fz_bind_framebuffer_t)
+         glsm_get_proc_address("glBindFramebuffer");
+      if (!bind_framebuffer)
+         bind_framebuffer = (fz_bind_framebuffer_t)
+            glsm_get_proc_address("glBindFramebufferEXT");
+      if (!bind_framebuffer)
+         bind_framebuffer = (fz_bind_framebuffer_t)
+            glsm_get_proc_address("glBindFramebufferOES");
+   }
+
+   if (!bind_framebuffer)
+      return;
+
+   framebuffer = (unsigned int) glsm_get_current_framebuffer();
+   bind_framebuffer(0x8D40u, framebuffer);
+#endif
+}
+
 static void *fz_plugin_bridge_get_proc(const char *name)
 {
    if (!name)
