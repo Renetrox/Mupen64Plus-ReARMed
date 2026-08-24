@@ -9,6 +9,7 @@ enum gfx_plugin_type
 {
    GFX_GLIDE64 = 0,
    GFX_RICE,
+   GFX_RICEFZ,
    GFX_GLN64,
    GFX_ANGRYLION,
    GFX_PARALLEL,
