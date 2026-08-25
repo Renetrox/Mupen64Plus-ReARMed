@@ -1,0 +1,64 @@
+name: GlideFZ build probe
+
+on:
+  push:
+    branches:
+      - glidefz-build-test
+  workflow_dispatch:
+
+jobs:
+  build-glidefz:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout ReARMed
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            pkg-config \
+            libsdl2-dev \
+            libpng-dev \
+            zlib1g-dev \
+            libgl1-mesa-dev
+
+      - name: Fetch Mupen64Plus FZ source
+        run: |
+          git clone --depth 1 https://github.com/fzurita/mupen64plus-ae.git "$RUNNER_TEMP/mupen64plus-ae"
+
+      - name: Build Glide64mk2 FZ sidecar
+        run: |
+          set -euxo pipefail
+          PLUGIN="$RUNNER_TEMP/mupen64plus-ae/app/src/main/jni/mupen64plus-video-glide64mk2"
+          make -C "$PLUGIN/projects/unix" \
+            APIDIR="$GITHUB_WORKSPACE/mupen64plus-core/src/api" \
+            HIRES=0 \
+            USE_FRAMESKIPPER=1 \
+            POSTFIX=-fz \
+            V=1 \
+            -j"$(nproc)"
+
+          mkdir -p "$GITHUB_WORKSPACE/build-probe"
+          cp "$PLUGIN/projects/unix/mupen64plus-video-glide64mk2-fz.so" \
+             "$GITHUB_WORKSPACE/build-probe/"
+          cp "$PLUGIN/data/Glide64mk2.ini" \
+             "$GITHUB_WORKSPACE/build-probe/"
+
+      - name: Inspect sidecar
+        run: |
+          set -euxo pipefail
+          SO="$GITHUB_WORKSPACE/build-probe/mupen64plus-video-glide64mk2-fz.so"
+          file "$SO"
+          ldd "$SO" || true
+          echo "--- Mupen64Plus exports ---"
+          nm -D --defined-only "$SO" | grep -E ' (PluginStartup|PluginShutdown|PluginGetVersion|InitiateGFX|RomOpen|RomClosed|ProcessDList|ProcessRDPList|UpdateScreen|ReadScreen2|SetRenderingCallback|FBRead|FBWrite|FBGetFrameBufferInfo|ResizeVideoOutput)$' || true
+
+      - name: Upload build probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: glidefz-build-probe
+          path: build-probe/
