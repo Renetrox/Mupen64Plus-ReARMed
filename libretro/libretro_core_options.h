@@ -2,12 +2,16 @@
  * Mupen64Plus-ReARMed core options wrapper.
  *
  * Keeps the inherited option definitions untouched in
- * libretro_core_options_base.h, then reorganizes plugin-related settings
- * into one static "Plugin Configuration" category.
+ * libretro_core_options_base.h, then gives the menu a clearer hierarchy:
  *
- * All plugin options remain visible together. This is deliberately simpler
- * and more predictable than hiding/showing options dynamically when the GFX
- * plugin changes, and it also works better with older libretro frontends.
+ *   - general/core options remain at the top level
+ *   - Plugin Configuration contains plugin selectors and shared settings
+ *   - each video renderer keeps its own category and its own options
+ *   - Rice gets a renderer category of its own
+ *   - Pak/Controller and Aleck64 remain separate
+ *
+ * This preserves the original renderer-specific grouping instead of folding
+ * every plugin option into one large category.
  */
 
 #ifndef M64P_REARMED_CORE_OPTIONS_WRAPPER_H
@@ -16,8 +20,68 @@
 #include "libretro_core_options_base.h"
 
 #define M64P_REARMED_PLUGIN_CATEGORY_KEY "plugin"
+#define M64P_REARMED_RICE_CATEGORY_KEY   "rice"
 
 static bool m64p_rearmed_options_prepared = false;
+
+/*
+ * ReARMed category order. We use our own category table instead of rewriting
+ * the inherited one, so the upstream option definitions remain untouched.
+ */
+static struct retro_core_option_v2_category m64p_rearmed_option_cats[] = {
+   {
+      M64P_REARMED_PLUGIN_CATEGORY_KEY,
+      "Plugin Configuration",
+      "Select graphics/RSP plugins and configure settings shared by the video plugins."
+   },
+#ifdef HAVE_PARALLEL
+   {
+      "parallel",
+      "ParaLLEl",
+      "Configure ParaLLEl options."
+   },
+#endif
+#ifdef HAVE_THR_AL
+   {
+      "angrylion",
+      "Angrylion",
+      "Configure Angrylion options."
+   },
+#endif
+   {
+      "gliden64",
+      "GLideN64",
+      "Configure GLideN64 options."
+   },
+   {
+      "glide64",
+      "Glide64",
+      "Configure Glide64 options."
+   },
+#ifdef HAVE_RICE
+   {
+      M64P_REARMED_RICE_CATEGORY_KEY,
+      "Rice",
+      "Configure Rice video plugin options."
+   },
+#endif
+   {
+      "gles2n64",
+      "gles2n64",
+      "Configure the legacy lightweight gles2n64 renderer."
+   },
+   {
+      "input",
+      "Pak/Controller Options",
+      "Configure Core Pak/Controller options."
+   },
+   {
+      "aleck64",
+      "Aleck64",
+      "Aleck64 arcade dipswitches (only used by Aleck64 MAME romsets)."
+   },
+   { NULL, NULL, NULL },
+};
 
 static bool m64p_rearmed_string_ends_with(const char *str, const char *suffix)
 {
@@ -36,23 +100,10 @@ static bool m64p_rearmed_string_ends_with(const char *str, const char *suffix)
    return strcmp(str + str_len - suffix_len, suffix) == 0;
 }
 
-static bool m64p_rearmed_is_renderer_category(const char *category)
-{
-   if (!category)
-      return false;
-
-   return strcmp(category, "parallel") == 0 ||
-          strcmp(category, "angrylion") == 0 ||
-          strcmp(category, "gliden64") == 0 ||
-          strcmp(category, "glide64") == 0 ||
-          strcmp(category, "gles2n64") == 0;
-}
-
 /*
- * Keep the two frameskip layers obvious in the UI. The core-level mode and
- * a renderer's native frameskip must not be enabled at the same time.
- * Actual automatic mutual exclusion can be added later, after the static
- * menu layout has been validated.
+ * Keep the two frameskip layers obvious in the UI. Core Frameskip is a core
+ * feature; renderer-native frameskip stays inside that renderer's category.
+ * The two modes must not be enabled at the same time.
  */
 static void m64p_rearmed_customize_frameskip_option(
       struct retro_core_option_v2_definition *option)
@@ -74,7 +125,7 @@ static void m64p_rearmed_customize_frameskip_option(
 
    if (m64p_rearmed_string_ends_with(option->key, "-rice-frameskip"))
    {
-      option->desc_categorized = "Rice Frameskip";
+      option->desc_categorized = "Frameskip";
       option->info_categorized =
             "Native frameskip provided by the Rice video plugin. Do not "
             "enable together with Core Frameskip; use only one frameskip "
@@ -84,7 +135,7 @@ static void m64p_rearmed_customize_frameskip_option(
 
    if (m64p_rearmed_string_ends_with(option->key, "-glide64-frameskip"))
    {
-      option->desc_categorized = "Glide64 Frameskip";
+      option->desc_categorized = "Frameskip";
       option->info_categorized =
             "Native frameskip provided by the Glide64 video plugin. Do not "
             "enable together with Core Frameskip; use only one frameskip "
@@ -94,7 +145,7 @@ static void m64p_rearmed_customize_frameskip_option(
 
    if (m64p_rearmed_string_ends_with(option->key, "-gles2n64-frameskip"))
    {
-      option->desc_categorized = "gles2n64 Frameskip";
+      option->desc_categorized = "Frameskip";
       option->info_categorized =
             "Native frameskip provided by the gles2n64 video plugin. Do not "
             "enable together with Core Frameskip; use only one frameskip "
@@ -102,28 +153,17 @@ static void m64p_rearmed_customize_frameskip_option(
    }
 }
 
-/* Returns true when an option belongs in Plugin Configuration. */
-static bool m64p_rearmed_is_plugin_option(
+/* Options that configure plugin selection or behaviour shared across plugins. */
+static bool m64p_rearmed_is_shared_plugin_option(
       const struct retro_core_option_v2_definition *option)
 {
-   const char *category;
    const char *key;
 
    if (!option || !option->key)
       return false;
 
-   category = option->category_key;
    key = option->key;
 
-   /* Every renderer-specific category is folded into one common category. */
-   if (m64p_rearmed_is_renderer_category(category))
-      return true;
-
-   /* Rice has no inherited renderer category yet, so include its option here. */
-   if (m64p_rearmed_string_ends_with(key, "-rice-frameskip"))
-      return true;
-
-   /* Shared graphics/RSP controls also belong with plugin configuration. */
    return m64p_rearmed_string_ends_with(key, "-gfxplugin") ||
           m64p_rearmed_string_ends_with(key, "-rspplugin") ||
           m64p_rearmed_string_ends_with(key, "-gfxplugin-accuracy") ||
@@ -134,50 +174,6 @@ static bool m64p_rearmed_is_plugin_option(
           m64p_rearmed_string_ends_with(key, "-enhanced-hle-audio-quality");
 }
 
-static void m64p_rearmed_compact_plugin_categories(void)
-{
-   size_t read_index = 0;
-   size_t write_index = 0;
-   bool plugin_category_added = false;
-
-   while (option_cats_us[read_index].key)
-   {
-      if (m64p_rearmed_is_renderer_category(option_cats_us[read_index].key))
-      {
-         if (!plugin_category_added)
-         {
-            option_cats_us[write_index].key  = M64P_REARMED_PLUGIN_CATEGORY_KEY;
-            option_cats_us[write_index].desc = "Plugin Configuration";
-            option_cats_us[write_index].info =
-                  "Select graphics/RSP plugins and configure all available video plugin options.";
-            write_index++;
-            plugin_category_added = true;
-         }
-      }
-      else
-      {
-         if (write_index != read_index)
-            option_cats_us[write_index] = option_cats_us[read_index];
-         write_index++;
-      }
-
-      read_index++;
-   }
-
-   option_cats_us[write_index].key  = NULL;
-   option_cats_us[write_index].desc = NULL;
-   option_cats_us[write_index].info = NULL;
-
-   /* Clear any stale entries after the new terminator. */
-   while (write_index < read_index)
-   {
-      write_index++;
-      option_cats_us[write_index].key  = NULL;
-      option_cats_us[write_index].desc = NULL;
-      option_cats_us[write_index].info = NULL;
-   }
-}
-
 static void m64p_rearmed_prepare_plugin_options(void)
 {
    size_t i = 0;
@@ -185,15 +181,23 @@ static void m64p_rearmed_prepare_plugin_options(void)
    if (m64p_rearmed_options_prepared)
       return;
 
-   m64p_rearmed_compact_plugin_categories();
+   /* Point the inherited options object at the ReARMed category hierarchy. */
+   options_us.categories = m64p_rearmed_option_cats;
 
    while (option_defs_us[i].key)
    {
       m64p_rearmed_customize_frameskip_option(&option_defs_us[i]);
 
-      if (m64p_rearmed_is_plugin_option(&option_defs_us[i]))
+      /* Shared selectors/settings belong in Plugin Configuration. */
+      if (m64p_rearmed_is_shared_plugin_option(&option_defs_us[i]))
          option_defs_us[i].category_key = M64P_REARMED_PLUGIN_CATEGORY_KEY;
 
+      /* Rice had no category upstream; give its native options a home. */
+      if (m64p_rearmed_string_ends_with(option_defs_us[i].key,
+                                        "-rice-frameskip"))
+         option_defs_us[i].category_key = M64P_REARMED_RICE_CATEGORY_KEY;
+
+      /* All inherited renderer categories are otherwise preserved as-is. */
       i++;
    }
 
