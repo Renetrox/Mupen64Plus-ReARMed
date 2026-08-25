@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euxo pipefail
           PLUGIN="$RUNNER_TEMP/mupen64plus-ae/app/src/main/jni/mupen64plus-video-glide64mk2"
-          make -C "$PLUGIN/projects/unix" \
+          make -C "$PLUGIN/projects/unix" all \
             APIDIR="$GITHUB_WORKSPACE/mupen64plus-core/src/api" \
             HIRES=0 \
             USE_FRAMESKIPPER=1 \
