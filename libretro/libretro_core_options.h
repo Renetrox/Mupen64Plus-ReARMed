@@ -57,6 +57,41 @@ static bool m64p_rearmed_is_renderer_category(const char *category)
 }
 
 /*
+ * Keep the two frameskip layers obvious in the UI. The core-level mode and
+ * a renderer's native frameskip must not be enabled at the same time.
+ * Actual automatic mutual exclusion will be added only after the menu
+ * reorganisation has been compiled and tested on a frontend.
+ */
+static void m64p_rearmed_customize_frameskip_option(
+      struct retro_core_option_v2_definition *option)
+{
+   if (!option || !option->key)
+      return;
+
+   if (strcmp(option->key, CORE_NAME "-frameskip") == 0)
+   {
+      option->desc = "Core Frameskip";
+      option->info =
+            "Renderer-independent automatic HLE graphics frameskip handled "
+            "by the core. Auto skips graphics work only when the emulator "
+            "falls behind while CPU/audio emulation continues. Requires the "
+            "HLE RSP. Do not enable together with a plugin-specific "
+            "frameskip mode; use only one frameskip layer at a time.";
+      return;
+   }
+
+   if (m64p_rearmed_string_ends_with(option->key, "-frameskip"))
+   {
+      /* Inside Plugin Configuration the renderer name is already implied. */
+      option->desc_categorized = "Frameskip";
+      option->info_categorized =
+            "Native frameskip provided by the selected video plugin. Do not "
+            "enable together with Core Frameskip; use only one frameskip "
+            "layer at a time.";
+   }
+}
+
+/*
  * Returns true when an option belongs in Plugin Configuration.
  * plugin_out is empty for shared plugin settings and otherwise contains
  * the GFX plugin name used by the visibility callback.
@@ -160,6 +195,8 @@ static void m64p_rearmed_prepare_plugin_options(void)
    while (option_defs_us[i].key)
    {
       const char *plugin = NULL;
+
+      m64p_rearmed_customize_frameskip_option(&option_defs_us[i]);
 
       if (m64p_rearmed_classify_plugin_option(&option_defs_us[i], &plugin))
       {
