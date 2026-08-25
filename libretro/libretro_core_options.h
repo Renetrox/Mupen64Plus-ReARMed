@@ -3,8 +3,11 @@
  *
  * Keeps the inherited option definitions untouched in
  * libretro_core_options_base.h, then reorganizes plugin-related settings
- * into one "Plugin Configuration" category. Renderer-specific options are
- * shown only for the currently selected GFX plugin.
+ * into one static "Plugin Configuration" category.
+ *
+ * All plugin options remain visible together. This is deliberately simpler
+ * and more predictable than hiding/showing options dynamically when the GFX
+ * plugin changes, and it also works better with older libretro frontends.
  */
 
 #ifndef M64P_REARMED_CORE_OPTIONS_WRAPPER_H
@@ -13,18 +16,7 @@
 #include "libretro_core_options_base.h"
 
 #define M64P_REARMED_PLUGIN_CATEGORY_KEY "plugin"
-#define M64P_REARMED_MAX_PLUGIN_OPTIONS  512
 
-struct m64p_rearmed_plugin_option_meta
-{
-   const char *key;
-   const char *plugin;
-};
-
-static struct m64p_rearmed_plugin_option_meta
-      m64p_rearmed_plugin_options[M64P_REARMED_MAX_PLUGIN_OPTIONS];
-static size_t m64p_rearmed_plugin_option_count = 0;
-static retro_environment_t m64p_rearmed_options_environ_cb = NULL;
 static bool m64p_rearmed_options_prepared = false;
 
 static bool m64p_rearmed_string_ends_with(const char *str, const char *suffix)
@@ -59,8 +51,8 @@ static bool m64p_rearmed_is_renderer_category(const char *category)
 /*
  * Keep the two frameskip layers obvious in the UI. The core-level mode and
  * a renderer's native frameskip must not be enabled at the same time.
- * Actual automatic mutual exclusion will be added only after the menu
- * reorganisation has been compiled and tested on a frontend.
+ * Actual automatic mutual exclusion can be added later, after the static
+ * menu layout has been validated.
  */
 static void m64p_rearmed_customize_frameskip_option(
       struct retro_core_option_v2_definition *option)
@@ -80,63 +72,66 @@ static void m64p_rearmed_customize_frameskip_option(
       return;
    }
 
-   if (m64p_rearmed_string_ends_with(option->key, "-frameskip"))
+   if (m64p_rearmed_string_ends_with(option->key, "-rice-frameskip"))
    {
-      /* Inside Plugin Configuration the renderer name is already implied. */
-      option->desc_categorized = "Frameskip";
+      option->desc_categorized = "Rice Frameskip";
       option->info_categorized =
-            "Native frameskip provided by the selected video plugin. Do not "
+            "Native frameskip provided by the Rice video plugin. Do not "
+            "enable together with Core Frameskip; use only one frameskip "
+            "layer at a time.";
+      return;
+   }
+
+   if (m64p_rearmed_string_ends_with(option->key, "-glide64-frameskip"))
+   {
+      option->desc_categorized = "Glide64 Frameskip";
+      option->info_categorized =
+            "Native frameskip provided by the Glide64 video plugin. Do not "
+            "enable together with Core Frameskip; use only one frameskip "
+            "layer at a time.";
+      return;
+   }
+
+   if (m64p_rearmed_string_ends_with(option->key, "-gles2n64-frameskip"))
+   {
+      option->desc_categorized = "gles2n64 Frameskip";
+      option->info_categorized =
+            "Native frameskip provided by the gles2n64 video plugin. Do not "
             "enable together with Core Frameskip; use only one frameskip "
             "layer at a time.";
    }
 }
 
-/*
- * Returns true when an option belongs in Plugin Configuration.
- * plugin_out is empty for shared plugin settings and otherwise contains
- * the GFX plugin name used by the visibility callback.
- */
-static bool m64p_rearmed_classify_plugin_option(
-      const struct retro_core_option_v2_definition *option,
-      const char **plugin_out)
+/* Returns true when an option belongs in Plugin Configuration. */
+static bool m64p_rearmed_is_plugin_option(
+      const struct retro_core_option_v2_definition *option)
 {
    const char *category;
    const char *key;
 
-   if (!option || !option->key || !plugin_out)
+   if (!option || !option->key)
       return false;
 
    category = option->category_key;
    key = option->key;
 
+   /* Every renderer-specific category is folded into one common category. */
    if (m64p_rearmed_is_renderer_category(category))
-   {
-      *plugin_out = category;
       return true;
-   }
 
-   /* Rice currently has only its fork-specific frameskip option exposed. */
+   /* Rice has no inherited renderer category yet, so include its option here. */
    if (m64p_rearmed_string_ends_with(key, "-rice-frameskip"))
-   {
-      *plugin_out = "rice";
       return true;
-   }
 
-   /* Shared plugin/RSP controls stay visible for every renderer. */
-   if (m64p_rearmed_string_ends_with(key, "-gfxplugin") ||
-       m64p_rearmed_string_ends_with(key, "-rspplugin") ||
-       m64p_rearmed_string_ends_with(key, "-gfxplugin-accuracy") ||
-       m64p_rearmed_string_ends_with(key, "-screensize") ||
-       m64p_rearmed_string_ends_with(key, "-aspectratiohint") ||
-       m64p_rearmed_string_ends_with(key, "-send_allist_to_hle_rsp") ||
-       m64p_rearmed_string_ends_with(key, "-enhanced-hle-audio") ||
-       m64p_rearmed_string_ends_with(key, "-enhanced-hle-audio-quality"))
-   {
-      *plugin_out = "";
-      return true;
-   }
-
-   return false;
+   /* Shared graphics/RSP controls also belong with plugin configuration. */
+   return m64p_rearmed_string_ends_with(key, "-gfxplugin") ||
+          m64p_rearmed_string_ends_with(key, "-rspplugin") ||
+          m64p_rearmed_string_ends_with(key, "-gfxplugin-accuracy") ||
+          m64p_rearmed_string_ends_with(key, "-screensize") ||
+          m64p_rearmed_string_ends_with(key, "-aspectratiohint") ||
+          m64p_rearmed_string_ends_with(key, "-send_allist_to_hle_rsp") ||
+          m64p_rearmed_string_ends_with(key, "-enhanced-hle-audio") ||
+          m64p_rearmed_string_ends_with(key, "-enhanced-hle-audio-quality");
 }
 
 static void m64p_rearmed_compact_plugin_categories(void)
@@ -154,7 +149,7 @@ static void m64p_rearmed_compact_plugin_categories(void)
             option_cats_us[write_index].key  = M64P_REARMED_PLUGIN_CATEGORY_KEY;
             option_cats_us[write_index].desc = "Plugin Configuration";
             option_cats_us[write_index].info =
-                  "Select graphics/RSP plugins and configure the active renderer.";
+                  "Select graphics/RSP plugins and configure all available video plugin options.";
             write_index++;
             plugin_category_added = true;
          }
@@ -194,67 +189,15 @@ static void m64p_rearmed_prepare_plugin_options(void)
 
    while (option_defs_us[i].key)
    {
-      const char *plugin = NULL;
-
       m64p_rearmed_customize_frameskip_option(&option_defs_us[i]);
 
-      if (m64p_rearmed_classify_plugin_option(&option_defs_us[i], &plugin))
-      {
+      if (m64p_rearmed_is_plugin_option(&option_defs_us[i]))
          option_defs_us[i].category_key = M64P_REARMED_PLUGIN_CATEGORY_KEY;
-
-         if (m64p_rearmed_plugin_option_count < M64P_REARMED_MAX_PLUGIN_OPTIONS)
-         {
-            m64p_rearmed_plugin_options[m64p_rearmed_plugin_option_count].key =
-                  option_defs_us[i].key;
-            m64p_rearmed_plugin_options[m64p_rearmed_plugin_option_count].plugin =
-                  plugin;
-            m64p_rearmed_plugin_option_count++;
-         }
-      }
 
       i++;
    }
 
    m64p_rearmed_options_prepared = true;
-}
-
-static bool m64p_rearmed_update_plugin_option_visibility(void)
-{
-   struct retro_variable gfx_var;
-   struct retro_core_option_display display;
-   const char *selected_plugin = NULL;
-   size_t i;
-
-   if (!m64p_rearmed_options_environ_cb)
-      return false;
-
-   gfx_var.key = CORE_NAME "-gfxplugin";
-   gfx_var.value = NULL;
-
-   if (m64p_rearmed_options_environ_cb(
-          RETRO_ENVIRONMENT_GET_VARIABLE, &gfx_var) && gfx_var.value)
-   {
-      selected_plugin = gfx_var.value;
-
-      /* The legacy gles2n64 renderer is exposed as "gln64" in the selector. */
-      if (strcmp(selected_plugin, "gln64") == 0)
-         selected_plugin = "gles2n64";
-   }
-
-   for (i = 0; i < m64p_rearmed_plugin_option_count; i++)
-   {
-      const char *option_plugin = m64p_rearmed_plugin_options[i].plugin;
-
-      display.key = m64p_rearmed_plugin_options[i].key;
-      display.visible = !selected_plugin || !option_plugin ||
-                        option_plugin[0] == '\0' ||
-                        strcmp(option_plugin, selected_plugin) == 0;
-
-      m64p_rearmed_options_environ_cb(
-            RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
-   }
-
-   return true;
 }
 
 /*
@@ -265,21 +208,8 @@ static bool m64p_rearmed_update_plugin_option_visibility(void)
 static INLINE void m64p_rearmed_libretro_set_core_options(
       retro_environment_t environ_cb, bool *categories_supported)
 {
-   struct retro_core_options_update_display_callback update_display_cb;
-
    m64p_rearmed_prepare_plugin_options();
-   m64p_rearmed_options_environ_cb = environ_cb;
-
    libretro_set_core_options(environ_cb, categories_supported);
-
-   if (!environ_cb)
-      return;
-
-   update_display_cb.callback = m64p_rearmed_update_plugin_option_visibility;
-
-   if (environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK,
-                  &update_display_cb))
-      m64p_rearmed_update_plugin_option_visibility();
 }
 
 #define libretro_set_core_options m64p_rearmed_libretro_set_core_options
