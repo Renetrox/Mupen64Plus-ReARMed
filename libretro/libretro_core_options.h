@@ -2,9 +2,12 @@
  * Mupen64Plus-ReARMed core options wrapper.
  *
  * Keeps the inherited option definitions untouched in
- * libretro_core_options_base.h, while presenting the existing renderer
- * categories together in a predictable order:
+ * libretro_core_options_base.h, while presenting plugin categories together
+ * in a predictable order. RetroArch places a category at the position of the
+ * first option that belongs to it, so ReARMed builds an ordered copy of the
+ * option definitions while preserving each renderer's real category key.
  *
+ *   Core Frameskip
  *   Plugin Configuration
  *   Rice
  *   Glide64
@@ -14,9 +17,10 @@
  *   ParaLLEl
  *   Pak/Controller Options
  *   Aleck64
+ *   remaining general/core options
  *
- * Core Options v2 does not support nested categories, so each renderer stays
- * a real RetroArch submenu instead of using fake selectable section markers.
+ * Core Options v2 does not support nested categories. Each renderer therefore
+ * remains a genuine RetroArch submenu; only the definition order is changed.
  */
 
 #ifndef M64P_REARMED_CORE_OPTIONS_WRAPPER_H
@@ -28,24 +32,19 @@
 #define M64P_REARMED_RICE_CATEGORY_KEY   "rice"
 
 static bool m64p_rearmed_options_prepared = false;
+static struct retro_core_option_v2_definition *m64p_rearmed_option_defs = NULL;
 
-/*
- * Keep all plugin-related categories consecutive. Renderer options themselves
- * retain the category keys inherited from ParaLLEl; Rice gets its own category.
- */
 static struct retro_core_option_v2_category m64p_rearmed_option_cats[] = {
    {
       M64P_REARMED_PLUGIN_CATEGORY_KEY,
       "Plugin Configuration",
       "Select graphics/RSP plugins and configure settings shared by the video plugins."
    },
-#ifdef HAVE_RICE
    {
       M64P_REARMED_RICE_CATEGORY_KEY,
       "Rice",
       "Configure Rice video plugin options."
    },
-#endif
    {
       "glide64",
       "Glide64",
@@ -61,20 +60,16 @@ static struct retro_core_option_v2_category m64p_rearmed_option_cats[] = {
       "GLideN64",
       "Configure GLideN64 options."
    },
-#ifdef HAVE_THR_AL
    {
       "angrylion",
       "Angrylion",
       "Configure Angrylion options."
    },
-#endif
-#ifdef HAVE_PARALLEL
    {
       "parallel",
       "ParaLLEl",
       "Configure ParaLLEl options."
    },
-#endif
    {
       "input",
       "Pak/Controller Options",
@@ -103,6 +98,45 @@ static bool m64p_rearmed_string_ends_with(const char *str, const char *suffix)
       return false;
 
    return strcmp(str + str_len - suffix_len, suffix) == 0;
+}
+
+static bool m64p_rearmed_is_renderer_category(const char *category)
+{
+   if (!category)
+      return false;
+
+   return strcmp(category, "glide64") == 0 ||
+          strcmp(category, "gles2n64") == 0 ||
+          strcmp(category, "gliden64") == 0 ||
+          strcmp(category, "angrylion") == 0 ||
+          strcmp(category, "parallel") == 0;
+}
+
+static bool m64p_rearmed_is_rice_option(
+      const struct retro_core_option_v2_definition *option)
+{
+   return option && option->key && strstr(option->key, "-rice-") != NULL;
+}
+
+/* Options that select plugins or configure behaviour shared by plugins. */
+static bool m64p_rearmed_is_shared_plugin_option(
+      const struct retro_core_option_v2_definition *option)
+{
+   const char *key;
+
+   if (!option || !option->key)
+      return false;
+
+   key = option->key;
+
+   return m64p_rearmed_string_ends_with(key, "-gfxplugin") ||
+          m64p_rearmed_string_ends_with(key, "-rspplugin") ||
+          m64p_rearmed_string_ends_with(key, "-gfxplugin-accuracy") ||
+          m64p_rearmed_string_ends_with(key, "-screensize") ||
+          m64p_rearmed_string_ends_with(key, "-aspectratiohint") ||
+          m64p_rearmed_string_ends_with(key, "-send_allist_to_hle_rsp") ||
+          m64p_rearmed_string_ends_with(key, "-enhanced-hle-audio") ||
+          m64p_rearmed_string_ends_with(key, "-enhanced-hle-audio-quality");
 }
 
 /*
@@ -157,53 +191,143 @@ static void m64p_rearmed_customize_frameskip_option(
    }
 }
 
-/* Options that select plugins or configure behaviour shared by plugins. */
-static bool m64p_rearmed_is_shared_plugin_option(
+static size_t m64p_rearmed_count_base_options(void)
+{
+   size_t count = 0;
+
+   while (option_defs_us[count].key)
+      count++;
+
+   return count;
+}
+
+static void m64p_rearmed_append_copy(size_t *write_index,
+      const struct retro_core_option_v2_definition *source,
+      const char *category)
+{
+   struct retro_core_option_v2_definition *dest;
+
+   if (!write_index || !source || !m64p_rearmed_option_defs)
+      return;
+
+   dest = &m64p_rearmed_option_defs[*write_index];
+   *dest = *source;
+
+   if (category)
+      dest->category_key = category;
+
+   m64p_rearmed_customize_frameskip_option(dest);
+   (*write_index)++;
+}
+
+static void m64p_rearmed_append_category_options(size_t *write_index,
+      const char *category)
+{
+   size_t i = 0;
+
+   if (!category)
+      return;
+
+   while (option_defs_us[i].key)
+   {
+      if (option_defs_us[i].category_key &&
+          strcmp(option_defs_us[i].category_key, category) == 0)
+         m64p_rearmed_append_copy(write_index, &option_defs_us[i], category);
+
+      i++;
+   }
+}
+
+static bool m64p_rearmed_is_reordered_option(
       const struct retro_core_option_v2_definition *option)
 {
-   const char *key;
+   const char *category;
 
    if (!option || !option->key)
       return false;
 
-   key = option->key;
+   if (strcmp(option->key, CORE_NAME "-frameskip") == 0)
+      return true;
 
-   return m64p_rearmed_string_ends_with(key, "-gfxplugin") ||
-          m64p_rearmed_string_ends_with(key, "-rspplugin") ||
-          m64p_rearmed_string_ends_with(key, "-gfxplugin-accuracy") ||
-          m64p_rearmed_string_ends_with(key, "-screensize") ||
-          m64p_rearmed_string_ends_with(key, "-aspectratiohint") ||
-          m64p_rearmed_string_ends_with(key, "-send_allist_to_hle_rsp") ||
-          m64p_rearmed_string_ends_with(key, "-enhanced-hle-audio") ||
-          m64p_rearmed_string_ends_with(key, "-enhanced-hle-audio-quality");
+   if (m64p_rearmed_is_shared_plugin_option(option) ||
+       m64p_rearmed_is_rice_option(option))
+      return true;
+
+   category = option->category_key;
+
+   return m64p_rearmed_is_renderer_category(category) ||
+          (category && strcmp(category, "input") == 0) ||
+          (category && strcmp(category, "aleck64") == 0);
 }
 
 static void m64p_rearmed_prepare_plugin_options(void)
 {
-   size_t i = 0;
+   size_t i;
+   size_t write_index = 0;
+   size_t base_count;
 
    if (m64p_rearmed_options_prepared)
       return;
 
-   /* Use ReARMed's ordered category list while preserving inherited options. */
-   options_us.categories = m64p_rearmed_option_cats;
+   base_count = m64p_rearmed_count_base_options();
 
-   while (option_defs_us[i].key)
+   m64p_rearmed_option_defs =
+         (struct retro_core_option_v2_definition *)calloc(
+               base_count + 1, sizeof(struct retro_core_option_v2_definition));
+
+   if (!m64p_rearmed_option_defs)
    {
-      m64p_rearmed_customize_frameskip_option(&option_defs_us[i]);
-
-      /* Shared selectors/settings live in Plugin Configuration. */
-      if (m64p_rearmed_is_shared_plugin_option(&option_defs_us[i]))
-         option_defs_us[i].category_key = M64P_REARMED_PLUGIN_CATEGORY_KEY;
-
-      /* Rice had no inherited renderer category; collect all Rice options. */
-      if (strstr(option_defs_us[i].key, "-rice-") != NULL)
-         option_defs_us[i].category_key = M64P_REARMED_RICE_CATEGORY_KEY;
-
-      /* Glide64/gles2n64/GLideN64/Angrylion/ParaLLEl keep their real
-       * inherited category keys, so RetroArch opens genuine submenus. */
-      i++;
+      m64p_rearmed_options_prepared = true;
+      return;
    }
+
+   /* Core-level frameskip stays first and outside renderer categories. */
+   for (i = 0; i < base_count; i++)
+   {
+      if (strcmp(option_defs_us[i].key, CORE_NAME "-frameskip") == 0)
+      {
+         m64p_rearmed_append_copy(&write_index, &option_defs_us[i], NULL);
+         break;
+      }
+   }
+
+   /* Shared plugin controls form the first real plugin submenu. */
+   for (i = 0; i < base_count; i++)
+   {
+      if (m64p_rearmed_is_shared_plugin_option(&option_defs_us[i]))
+         m64p_rearmed_append_copy(&write_index, &option_defs_us[i],
+               M64P_REARMED_PLUGIN_CATEGORY_KEY);
+   }
+
+   /* Rice has no inherited category, so collect its options explicitly. */
+   for (i = 0; i < base_count; i++)
+   {
+      if (m64p_rearmed_is_rice_option(&option_defs_us[i]))
+         m64p_rearmed_append_copy(&write_index, &option_defs_us[i],
+               M64P_REARMED_RICE_CATEGORY_KEY);
+   }
+
+   /* Real renderer categories, kept consecutive and in ReARMed's chosen order. */
+   m64p_rearmed_append_category_options(&write_index, "glide64");
+   m64p_rearmed_append_category_options(&write_index, "gles2n64");
+   m64p_rearmed_append_category_options(&write_index, "gliden64");
+   m64p_rearmed_append_category_options(&write_index, "angrylion");
+   m64p_rearmed_append_category_options(&write_index, "parallel");
+
+   /* Other real categories follow the renderer block. */
+   m64p_rearmed_append_category_options(&write_index, "input");
+   m64p_rearmed_append_category_options(&write_index, "aleck64");
+
+   /* Append all remaining general/core options in their inherited order. */
+   for (i = 0; i < base_count; i++)
+   {
+      if (!m64p_rearmed_is_reordered_option(&option_defs_us[i]))
+         m64p_rearmed_append_copy(&write_index, &option_defs_us[i], NULL);
+   }
+
+   /* calloc() supplies the terminating all-NULL definition. */
+   options_us.categories  = m64p_rearmed_option_cats;
+   options_us.definitions = m64p_rearmed_option_defs;
 
    m64p_rearmed_options_prepared = true;
 }
