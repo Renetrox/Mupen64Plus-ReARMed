@@ -36,8 +36,7 @@ void        (*renderCallback)() = NULL;
  *   and do NOT raise MI_INTR_SP here. Current rsp_core consumes DP at task end
  *   and schedules it with normal deferred timing, while rsp-hle already owns
  *   the SP task-done interrupt path. */
-#define GLN64_FRAMESKIP_AUTO     (-1)
-#define GLN64_FRAMESKIP_AUTO_MAX 2
+#define GLN64_FRAMESKIP_AUTO_MIN (-5)
 
 typedef struct
 {
@@ -70,8 +69,8 @@ static void gln64_frameskip_sync_mode(void)
 {
    int mode = parallel_n64_get_gles2n64_frameskip_mode();
 
-   if (mode < GLN64_FRAMESKIP_AUTO)
-      mode = GLN64_FRAMESKIP_AUTO;
+   if (mode < GLN64_FRAMESKIP_AUTO_MIN)
+      mode = GLN64_FRAMESKIP_AUTO_MIN;
    if (mode > 5)
       mode = 5;
 
@@ -79,8 +78,7 @@ static void gln64_frameskip_sync_mode(void)
    {
       gln64_frame_skipper.mode = mode;
       gln64_frame_skipper.max_skips =
-         (mode == GLN64_FRAMESKIP_AUTO) ? GLN64_FRAMESKIP_AUTO_MAX :
-         ((mode > 0) ? mode : 0);
+         (mode < 0) ? -mode : ((mode > 0) ? mode : 0);
       gln64_frameskip_start();
    }
 }

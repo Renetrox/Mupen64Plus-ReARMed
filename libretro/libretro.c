@@ -265,8 +265,10 @@ static uint64_t retro_frameskip_vi_serial = 0;
 static uint64_t retro_frameskip_decision_vi = (uint64_t)-1;
 static int      retro_frameskip_skip_current_vi = 0;
 
-/* Native legacy-gles2n64 mode:
- *  0 = disabled, -1 = auto, 1..5 = manual.
+/* Native legacy-gles2n64 mode, matching Mupen64Plus FZ semantics:
+ *  0       = disabled
+ * -1..-5  = automatic catch-up, absolute value is max consecutive skips
+ *  1..5   = manual/exact skip count
  * Read by gles2n64 through libretro_private.h. */
 static int retro_gles2n64_frameskip_mode = 0;
 
@@ -1682,13 +1684,18 @@ void update_variables(bool startup)
    {
       int mode = 0;
 
+      /* Backward compatibility with the old ReARMed option strings.
+       * The old single Auto mode was fixed at two consecutive skips, so map
+       * it to FZ's -2 value. */
       if (!strcmp(var.value, "auto"))
-         mode = -1;
-      else if (strcmp(var.value, "disabled"))
+         mode = -2;
+      else if (!strcmp(var.value, "disabled"))
+         mode = 0;
+      else
          mode = atoi(var.value);
 
-      if (mode < -1)
-         mode = -1;
+      if (mode < -5)
+         mode = -5;
       if (mode > 5)
          mode = 5;
 

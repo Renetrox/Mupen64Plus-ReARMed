@@ -97,20 +97,24 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-gles2n64-frameskip",
         "gles2n64 Frame Skip",
         "Frame Skip",
-        "Native Mupen64Plus FZ-style frameskip inside the legacy gles2n64 renderer. Auto skips only when behind; numeric values render one graphics frame and then skip the selected number of graphics frames. This native mode takes precedence over the global Frame Skip while gles2n64 is active.",
+        "Native Mupen64Plus FZ-style frameskip inside the legacy gles2n64 renderer. Negative values use automatic catch-up with the selected maximum consecutive skips; positive values skip exactly that many graphics frames after each rendered frame. This native mode takes precedence over the global Frame Skip while gles2n64 is active.",
         NULL,
         "gles2n64",
         {
-            {"disabled", "Disabled"},
-            {"auto", "Auto"},
-            {"1", "1"},
-            {"2", "2"},
-            {"3", "3"},
-            {"4", "4"},
-            {"5", "5"},
+            {"0",  "Never skip frames"},
+            {"-1", "No more than 1 frame"},
+            {"-2", "No more than 2 frames"},
+            {"-3", "No more than 3 frames"},
+            {"-4", "No more than 4 frames"},
+            {"-5", "No more than 5 frames"},
+            {"1",  "Exactly 1 frame"},
+            {"2",  "Exactly 2 frames"},
+            {"3",  "Exactly 3 frames"},
+            {"4",  "Exactly 4 frames"},
+            {"5",  "Exactly 5 frames"},
             { NULL, NULL },
         },
-        "disabled"
+        "0"
     },
 
     {
