@@ -718,20 +718,24 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-frameskip",
         "Glide64: Frameskip",
         "Frameskip",
-        "Skip Glide64 graphics display lists to reduce rendering load. Automatic mode skips only when emulation falls behind and may skip up to five consecutive frames. Disabled preserves normal rendering.",
+        "Native Glide64mk2/FZ-style frameskip. Negative values use automatic catch-up with the selected maximum consecutive skips; positive values skip exactly that many graphics frames after each rendered frame. This native mode takes precedence over the global Frame Skip while Glide64 is active.",
         NULL,
         "glide64",
         {
-            { "disabled", "Disabled" },
-            { "auto", "Automatic" },
-            { "1", "1" },
-            { "2", "2" },
-            { "3", "3" },
-            { "4", "4" },
-            { "5", "5" },
+            { "0",  "Never skip frames" },
+            { "-1", "No more than 1 frame" },
+            { "-2", "No more than 2 frames" },
+            { "-3", "No more than 3 frames" },
+            { "-4", "No more than 4 frames" },
+            { "-5", "No more than 5 frames" },
+            { "1",  "Exactly 1 frame" },
+            { "2",  "Exactly 2 frames" },
+            { "3",  "Exactly 3 frames" },
+            { "4",  "Exactly 4 frames" },
+            { "5",  "Exactly 5 frames" },
             { NULL, NULL },
         },
-        "disabled"
+        "0"
     },
 #endif
     {

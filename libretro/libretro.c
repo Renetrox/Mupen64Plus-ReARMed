@@ -1757,19 +1757,29 @@ void update_variables(bool startup)
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
+      int mode = 0;
+
+      /* Backward compatibility with the previous ReARMed strings. The old
+       * single Automatic mode already used Glide64's maximum of five skips,
+       * so preserve it as the FZ -5 setting. */
       if (!strcmp(var.value, "auto"))
-         glide64_frameskip_configure(GLIDE64_FRAMESKIP_AUTO, 5);
+         mode = -5;
       else if (!strcmp(var.value, "disabled"))
-         glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
+         mode = 0;
       else
-      {
-         int max_skips = atoi(var.value);
-         if (max_skips < 1)
-            max_skips = 1;
-         if (max_skips > 5)
-            max_skips = 5;
-         glide64_frameskip_configure(GLIDE64_FRAMESKIP_MANUAL, max_skips);
-      }
+         mode = atoi(var.value);
+
+      if (mode < -5)
+         mode = -5;
+      if (mode > 5)
+         mode = 5;
+
+      if (mode < 0)
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_AUTO, -mode);
+      else if (mode > 0)
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_MANUAL, mode);
+      else
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
    }
    else
       glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
