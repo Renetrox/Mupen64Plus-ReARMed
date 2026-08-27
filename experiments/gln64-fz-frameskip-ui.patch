@@ -1,0 +1,103 @@
+diff --git a/libretro/libretro_core_options_base.h b/libretro/libretro_core_options_base.h
+--- a/libretro/libretro_core_options_base.h
++++ b/libretro/libretro_core_options_base.h
+@@
+     {
+         CORE_NAME "-gles2n64-frameskip",
+         "gles2n64 Frame Skip",
+         "Frame Skip",
+-        "Native Mupen64Plus FZ-style frameskip inside the legacy gles2n64 renderer. Auto skips only when behind; numeric values render one graphics frame and then skip the selected number of graphics frames. This native mode takes precedence over the global Frame Skip while gles2n64 is active.",
++        "Native Mupen64Plus FZ-style frameskip inside the legacy gles2n64 renderer. 'No more than' modes use automatic catch-up and limit the maximum number of consecutive skipped graphics frames. 'Exactly' modes render one graphics frame and then skip the selected number of graphics frames. This native mode takes precedence over the global Frame Skip while gles2n64 is active.",
+         NULL,
+         "gles2n64",
+         {
+-            {"disabled", "Disabled"},
+-            {"auto", "Auto"},
+-            {"1", "1"},
+-            {"2", "2"},
+-            {"3", "3"},
+-            {"4", "4"},
+-            {"5", "5"},
++            {"disabled", "Never skip frames"},
++            {"-1", "No more than 1 frame"},
++            {"-2", "No more than 2 frames"},
++            {"-3", "No more than 3 frames"},
++            {"-4", "No more than 4 frames"},
++            {"-5", "No more than 5 frames"},
++            {"1", "Exactly 1 frame"},
++            {"2", "Exactly 2 frames"},
++            {"3", "Exactly 3 frames"},
++            {"4", "Exactly 4 frames"},
++            {"5", "Exactly 5 frames"},
+             { NULL, NULL },
+         },
+         "disabled"
+     },
+diff --git a/libretro/libretro.c b/libretro/libretro.c
+--- a/libretro/libretro.c
++++ b/libretro/libretro.c
+@@
+-/* Native legacy-gles2n64 mode:
+- *  0 = disabled, -1 = auto, 1..5 = manual.
++/* Native legacy-gles2n64 mode, matching Mupen64Plus FZ profile semantics:
++ *  0       = disabled
++ * -1..-5   = automatic, absolute value is the maximum consecutive skips
++ *  1..5    = manual, render one graphics frame then skip exactly N
+  * Read by gles2n64 through libretro_private.h. */
+ static int retro_gles2n64_frameskip_mode = 0;
+@@
+    var.key = CORE_NAME "-gles2n64-frameskip";
+    var.value = NULL;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+       int mode = 0;
+ 
++      /* Backward compatibility with the old ReARMed option. Its single
++       * "auto" choice used a hard-coded maximum of two skipped frames. */
+       if (!strcmp(var.value, "auto"))
+-         mode = -1;
++         mode = -2;
+       else if (strcmp(var.value, "disabled"))
+          mode = atoi(var.value);
+ 
+-      if (mode < -1)
+-         mode = -1;
++      if (mode < -5)
++         mode = -5;
+       if (mode > 5)
+          mode = 5;
+ 
+       retro_gles2n64_frameskip_mode = mode;
+    }
+diff --git a/gles2n64/src/gles2N64.c b/gles2n64/src/gles2N64.c
+--- a/gles2n64/src/gles2N64.c
++++ b/gles2n64/src/gles2N64.c
+@@
+-#define GLN64_FRAMESKIP_AUTO     (-1)
+-#define GLN64_FRAMESKIP_AUTO_MAX 2
+-
+ typedef struct
+ {
+    int mode;
+@@
+ static void gln64_frameskip_sync_mode(void)
+ {
+    int mode = parallel_n64_get_gles2n64_frameskip_mode();
+ 
+-   if (mode < GLN64_FRAMESKIP_AUTO)
+-      mode = GLN64_FRAMESKIP_AUTO;
++   if (mode < -5)
++      mode = -5;
+    if (mode > 5)
+       mode = 5;
+ 
+    if (gln64_frame_skipper.mode != mode)
+    {
+       gln64_frame_skipper.mode = mode;
+       gln64_frame_skipper.max_skips =
+-         (mode == GLN64_FRAMESKIP_AUTO) ? GLN64_FRAMESKIP_AUTO_MAX :
+-         ((mode > 0) ? mode : 0);
++         (mode < 0) ? -mode : ((mode > 0) ? mode : 0);
+       gln64_frameskip_start();
+    }
+ }
