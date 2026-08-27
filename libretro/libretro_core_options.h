@@ -733,6 +733,22 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         },
         "disabled"
     },
+
+    {
+        CORE_NAME "-glide64-fog",
+        "Glide64: Fog",
+        "Fog",
+        "Mupen64Plus FZ-style Glide64 fog override. Game default preserves the renderer's per-game profile; Disabled and Enabled override that profile when Glide64 loads the game. Restart content after changing this option.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0",  "Disabled" },
+            { "1",  "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
 #endif
     {
         CORE_NAME "-gfxplugin-accuracy",

@@ -1830,6 +1830,20 @@ void ReadSpecialSettings (const char * name)
    if (settings.n64_z_scale)
       ZLUT_init();
 
+   /* Mupen64Plus FZ-style user override.
+    * The hardcoded per-game table above remains authoritative when the Core
+    * Option is set to Game default (-1).  Apply an explicit 0/1 only after
+    * that table has selected the game's native Glide64 fog value. */
+   var.key = "parallel-n64-glide64-fog";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (!strcmp(var.value, "0"))
+         settings.fog = 0;
+      else if (!strcmp(var.value, "1"))
+         settings.fog = 1;
+   }
+
    //frame buffer
 
    if (optimize_texrect > 0)
