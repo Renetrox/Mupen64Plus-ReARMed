@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 INI = ROOT / "glide2gl/src/Glide64/Glide64_Ini.c"
@@ -18,16 +17,16 @@ if MARKER in ini or MARKER in opts:
     raise SystemExit(0)
 
 # Only expose controls whose backing state/bit handling is still present in
-# this Glide64 tree.  Deliberately excluded for this first pass:
-#   filtering        - existing libretro Texture Filtering has different semantics
-#   fb_hires/HWFBE   - implementation was removed/ifdef'd out historically
-#   hires_buf_clear  - tied to HWFBE
-#   fast_crc         - field survives but consumer needs a separate audit
-#   use_sts1_only    - no backing field in this tree
+# this Glide64 tree. Deliberately excluded for this first pass:
+#   filtering          - existing libretro Texture Filtering has different semantics
+#   fb_hires/HWFBE     - implementation was removed/ifdef'd out historically
+#   hires_buf_clear    - tied to HWFBE
+#   fast_crc           - field survives but consumer needs a separate audit
+#   use_sts1_only      - no backing field in this tree
 #   texture_correction - backing field was removed
-#   clip_zmax        - backing field was removed
-#   aspect           - conflicts with the current frontend aspect path
-#   wrpAnisotropic   - wrapper-side FZ setting, not this renderer state
+#   clip_zmax          - backing field was removed
+#   aspect             - conflicts with the current frontend aspect path
+#   wrpAnisotropic     - wrapper-side FZ setting, not this renderer state
 
 options = [
     ("fog", "Fog", [("-1", "Game default"), ("0", "Disabled"), ("1", "Enabled")]),
@@ -58,6 +57,37 @@ options = [
     ("ignore-aux-copy", "Ignore Auxiliary Copy", [("-1", "Game default"), ("0", "Disabled"), ("1", "Enabled")]),
     ("useless-is-useless", "Useless Is Useless", [("-1", "Game default"), ("0", "Disabled"), ("1", "Enabled")]),
     ("fb-read-always", "Framebuffer Read Always", [("-1", "Game default"), ("0", "Disabled"), ("1", "Enabled")]),
+]
+
+override_targets = [
+    ("fog", "settings.fog"),
+    ("buff-clear", "settings.buff_clear"),
+    ("swapmode", "settings.swapmode"),
+    ("lodmode", "settings.lodmode"),
+    ("fb-smart", "smart_read"),
+    ("fb-render", "depth_render"),
+    ("fb-crc-mode", "fb_crc_mode"),
+    ("read-back-to-screen", "read_back_to_screen"),
+    ("detect-cpu-write", "cpu_write_hack"),
+    ("alt-tex-size", "settings.alt_tex_size"),
+    ("force-microcheck", "settings.force_microcheck"),
+    ("force-quad3d", "settings.force_quad3d"),
+    ("optimize-texrect", "optimize_texrect"),
+    ("fb-read-alpha", "read_alpha"),
+    ("force-calc-sphere", "settings.force_calc_sphere"),
+    ("increase-texrect-edge", "settings.increase_texrect_edge"),
+    ("decrease-fillrect-edge", "settings.decrease_fillrect_edge"),
+    ("stipple-mode", "settings.stipple_mode"),
+    ("clip-zmin", "settings.clip_zmin"),
+    ("adjust-aspect", "settings.adjust_aspect"),
+    ("correct-viewport", "settings.correct_viewport"),
+    ("zmode-compare-less", "settings.zmode_compare_less"),
+    ("old-style-adither", "settings.old_style_adither"),
+    ("n64-z-scale", "settings.n64_z_scale"),
+    ("pal230", "settings.pal230"),
+    ("ignore-aux-copy", "ignore_aux_copy"),
+    ("useless-is-useless", "useless_is_useless"),
+    ("fb-read-always", "read_always"),
 ]
 
 
@@ -92,17 +122,25 @@ opts = opts.replace(
 helper_anchor = 'extern void glide_set_filtering(unsigned value);\n'
 if helper_anchor not in ini:
     raise SystemExit("Glide64 helper anchor not found; source layout changed.")
-helper = f'''\n/* {MARKER}.  Returns true when RetroArch supplied a numeric value. */\nstatic bool glide64_get_int_option(const char *key, int *value)\n{{\n   struct retro_variable var = {{ key, NULL }};\n   int parsed;\n\n   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) &&\n       var.value && sscanf(var.value, "%d", &parsed) == 1)\n   {{\n      *value = parsed;\n      return true;\n   }}\n\n   return false;\n}}\n'''
+helper = f'''\n/* {MARKER}. Returns true when RetroArch supplied a numeric value. */\nstatic bool glide64_get_int_option(const char *key, int *value)\n{{\n   struct retro_variable var = {{ key, NULL }};\n   int parsed;\n\n   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) &&\n       var.value && sscanf(var.value, "%d", &parsed) == 1)\n   {{\n      *value = parsed;\n      return true;\n   }}\n\n   return false;\n}}\n'''
 ini = ini.replace(helper_anchor, helper_anchor + helper, 1)
 
 override_anchor = '''   if (settings.n64_z_scale)\n      ZLUT_init();\n\n   //frame buffer\n'''
 if override_anchor not in ini:
     raise SystemExit("Glide64 override anchor not found; source layout changed.")
 
-overrides = f'''   /* {MARKER}.\n    * Apply these after the built-in game table and accuracy policy.  A value\n    * of -1 is FZ's Game default sentinel and therefore leaves the table's\n    * decision untouched. */\n   {{\n      int v;\n#define GLIDE64_OVERRIDE(KEY, TARGET) \\\n      do {{ \\\n         if (glide64_get_int_option("parallel-n64-glide64-" KEY, &v) && v >= 0) \\\n            (TARGET) = v; \\\n      }} while (0)\n\n      GLIDE64_OVERRIDE("fog", settings.fog);\n      GLIDE64_OVERRIDE("buff-clear", settings.buff_clear);\n      GLIDE64_OVERRIDE("swapmode", settings.swapmode);\n      GLIDE64_OVERRIDE("lodmode", settings.lodmode);\n      GLIDE64_OVERRIDE("fb-smart", smart_read);\n      GLIDE64_OVERRIDE("fb-render", depth_render);\n      GLIDE64_OVERRIDE("fb-crc-mode", fb_crc_mode);\n      GLIDE64_OVERRIDE("read-back-to-screen", read_back_to_screen);\n      GLIDE64_OVERRIDE("detect-cpu-write", cpu_write_hack);\n      GLIDE64_OVERRIDE("alt-tex-size", settings.alt_tex_size);\n      GLIDE64_OVERRIDE("force-microcheck", settings.force_microcheck);\n      GLIDE64_OVERRIDE("force-quad3d", settings.force_quad3d);\n      GLIDE64_OVERRIDE("optimize-texrect", optimize_texrect);\n      GLIDE64_OVERRIDE("fb-read-alpha", read_alpha);\n      GLIDE64_OVERRIDE("force-calc-sphere", settings.force_calc_sphere);\n      GLIDE64_OVERRIDE("increase-texrect-edge", settings.increase_texrect_edge);\n      GLIDE64_OVERRIDE("decrease-fillrect-edge", settings.decrease_fillrect_edge);\n      GLIDE64_OVERRIDE("stipple-mode", settings.stipple_mode);\n      GLIDE64_OVERRIDE("clip-zmin", settings.clip_zmin);\n      GLIDE64_OVERRIDE("adjust-aspect", settings.adjust_aspect);\n      GLIDE64_OVERRIDE("correct-viewport", settings.correct_viewport);\n      GLIDE64_OVERRIDE("zmode-compare-less", settings.zmode_compare_less);\n      GLIDE64_OVERRIDE("old-style-adither", settings.old_style_adither);\n      GLIDE64_OVERRIDE("n64-z-scale", settings.n64_z_scale);\n      GLIDE64_OVERRIDE("pal230", settings.pal230);\n      GLIDE64_OVERRIDE("ignore-aux-copy", ignore_aux_copy);\n      GLIDE64_OVERRIDE("useless-is-useless", useless_is_useless);\n      GLIDE64_OVERRIDE("fb-read-always", read_always);\n\n#undef GLIDE64_OVERRIDE\n   }}\n\n   if (settings.n64_z_scale)\n      ZLUT_init();\n\n   //frame buffer\n'''
+override_lines = []
+for suffix, target in override_targets:
+    override_lines.append(
+        f'      if (glide64_get_int_option("parallel-n64-glide64-{suffix}", &v) && v >= 0)\n'
+        f'         {target} = v;'
+    )
+
+overrides = f'''   /* {MARKER}.\n    * Apply these after the built-in game table and accuracy policy. A value\n    * of -1 is FZ's Game default sentinel and therefore leaves the table's\n    * decision untouched. */\n   {{\n      int v;\n{chr(10).join(override_lines)}\n   }}\n\n   if (settings.n64_z_scale)\n      ZLUT_init();\n\n   //frame buffer\n'''
 ini = ini.replace(override_anchor, overrides, 1)
 
-INI.write_text(ini, encoding="utf-8")
+# Preserve the source file's existing UTF-8 BOM.
+INI.write_text(ini, encoding="utf-8-sig")
 OPTS.write_text(opts, encoding="utf-8")
 
 print(f"Applied {len(options)} live Glide64 FZ-style options.")
