@@ -135,6 +135,7 @@ retro_environment_t environ_cb                    = NULL;
 /* mupen64plus-next core globals consumed by the adopted main.c/rom.c */
 uint32_t CountPerOp = 0;
 uint32_t CountPerOpDenomPot = 0;
+int32_t SIDMADurationOverride = -1;
 uint32_t ForceDisableExtraMem = 0;
 uint32_t EnableThreadedRenderer = 0;
 char* retro_dd_path_img = NULL;
@@ -1693,6 +1694,35 @@ void update_variables(bool startup)
          mode = 5;
 
       retro_gles2n64_frameskip_mode = mode;
+   }
+
+   /* ReARMed system timing libretro bridge.
+    * Auto keeps the ROM database/default. Explicit values are consumed only
+    * when the emulated device is built, so changing them requires restart. */
+   if (startup)
+   {
+      CountPerOp = 0;
+      SIDMADurationOverride = -1;
+
+      var.key = "parallel-n64-count-per-op";
+      var.value = NULL;
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value &&
+          strcmp(var.value, "auto") != 0)
+      {
+         long value = strtol(var.value, NULL, 0);
+         if (value >= 1 && value <= 3)
+            CountPerOp = (uint32_t)value;
+      }
+
+      var.key = "parallel-n64-si-dma-duration";
+      var.value = NULL;
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value &&
+          strcmp(var.value, "auto") != 0)
+      {
+         long value = strtol(var.value, NULL, 0);
+         if (value >= 0 && value <= 0x10000)
+            SIDMADurationOverride = (int32_t)value;
+      }
    }
 
    /* CPU core selection: pure interpreter (0), cached interpreter (1),

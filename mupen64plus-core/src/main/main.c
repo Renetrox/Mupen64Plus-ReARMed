@@ -830,33 +830,12 @@ m64p_error main_run(void)
     if (count_per_op <= 0)
         count_per_op = ROM_SETTINGS.countperop;
 
-    /* ReARMed final Glide64 + system timing: explicit core-option values override the ROM database only
-     * for this content start. Auto leaves the database/default untouched. */
-    {
-        struct retro_variable timing_var = { "parallel-n64-count-per-op", NULL };
-        if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &timing_var) &&
-            timing_var.value && strcmp(timing_var.value, "auto") != 0)
-        {
-            long value = strtol(timing_var.value, NULL, 0);
-            if (value >= 1 && value <= 3)
-                count_per_op = (uint32_t)value;
-        }
-    }
-
     if (count_per_op_denom_pot > 20)
         count_per_op_denom_pot = 20;
 
     si_dma_duration = ROM_SETTINGS.sidmaduration;
-    {
-        struct retro_variable timing_var = { "parallel-n64-si-dma-duration", NULL };
-        if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &timing_var) &&
-            timing_var.value && strcmp(timing_var.value, "auto") != 0)
-        {
-            long value = strtol(timing_var.value, NULL, 0);
-            if (value >= 0 && value <= 0x10000)
-                si_dma_duration = (int32_t)value;
-        }
-    }
+    if (SIDMADurationOverride >= 0)
+        si_dma_duration = SIDMADurationOverride;
 
     rdram_size = (disable_extra_mem == 0) ? 0x800000 : 0x400000;
 

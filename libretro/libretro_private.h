@@ -23,6 +23,9 @@ int retro_return(bool just_flipping);
 int parallel_n64_get_gles2n64_frameskip_mode(void);
 uint64_t parallel_n64_get_time_usec(void);
 
+/* Startup-only system timing override read by the adopted core. */
+extern int32_t SIDMADurationOverride;
+
 
 #define SDL_GetTicks() FAKE_SDL_TICKS
 
