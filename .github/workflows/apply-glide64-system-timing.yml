@@ -1,0 +1,35 @@
+name: Apply Glide64 and system timing finalizer
+
+on:
+  push:
+    branches:
+      - glide64-system-timing-final
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message == 'Run Glide64/system timing finalizer'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply finalizer
+        run: python3 tools/finalize-glide64-system-timing.py
+
+      - name: Validate diff
+        run: git diff --check
+
+      - name: Commit materialized source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add libretro/libretro_core_options.h \
+                  libretro/libretro_core_options_base.h \
+                  mupen64plus-core/src/main/main.c \
+                  glide2gl/src/Glide64/Glide64_Ini.c
+          git rm .github/workflows/apply-glide64-system-timing.yml
+          git commit -m "Finalize Glide64 options and system timing"
+          git push
