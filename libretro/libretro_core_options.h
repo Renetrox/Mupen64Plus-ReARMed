@@ -29,6 +29,7 @@
 #include "libretro_core_options_base.h"
 
 #define M64P_REARMED_PLUGIN_CATEGORY_KEY "plugin"
+#define M64P_REARMED_SYSTEM_CATEGORY_KEY "system"
 #define M64P_REARMED_RICE_CATEGORY_KEY   "rice"
 
 static bool m64p_rearmed_options_prepared = false;
@@ -39,6 +40,11 @@ static struct retro_core_option_v2_category m64p_rearmed_option_cats[] = {
       M64P_REARMED_PLUGIN_CATEGORY_KEY,
       "Plugin Configuration",
       "Select graphics/RSP plugins and configure settings shared by the video plugins."
+   },
+   {
+      M64P_REARMED_SYSTEM_CATEGORY_KEY,
+      "System Timing",
+      "Ajustes avanzados de timing del núcleo. Auto conserva los valores específicos de cada juego."
    },
    {
       M64P_REARMED_RICE_CATEGORY_KEY,
@@ -256,6 +262,7 @@ static bool m64p_rearmed_is_reordered_option(
    category = option->category_key;
 
    return m64p_rearmed_is_renderer_category(category) ||
+          (category && strcmp(category, M64P_REARMED_SYSTEM_CATEGORY_KEY) == 0) ||
           (category && strcmp(category, "input") == 0) ||
           (category && strcmp(category, "aleck64") == 0);
 }
@@ -298,6 +305,9 @@ static void m64p_rearmed_prepare_plugin_options(void)
          m64p_rearmed_append_copy(&write_index, &option_defs_us[i],
                M64P_REARMED_PLUGIN_CATEGORY_KEY);
    }
+
+   /* Advanced timing controls are core-wide, not renderer-specific. */
+   m64p_rearmed_append_category_options(&write_index, M64P_REARMED_SYSTEM_CATEGORY_KEY);
 
    /* Rice has no inherited category, so collect its options explicitly. */
    for (i = 0; i < base_count; i++)

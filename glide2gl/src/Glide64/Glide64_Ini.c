@@ -16,6 +16,22 @@ extern retro_environment_t environ_cb;
 extern void update_variables(bool startup);
 extern void glide_set_filtering(unsigned value);
 
+/* ReARMed final Glide64 + system timing. Returns true when RetroArch supplied a numeric value. */
+static bool glide64_get_int_option(const char *key, int *value)
+{
+   struct retro_variable var = { key, NULL };
+   int parsed;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) &&
+       var.value && sscanf(var.value, "%d", &parsed) == 1)
+   {
+      *value = parsed;
+      return true;
+   }
+
+   return false;
+}
+
 void ReadSettings(void)
 {
    struct retro_variable var = { "parallel-n64-screensize", 0 };
@@ -1825,6 +1841,70 @@ void ReadSpecialSettings (const char * name)
          if (smart_read > 0)
             smart_read = 0;
          break; 
+   }
+
+   /* ReARMed final Glide64 + system timing.
+    * Built-in game profiles and the accuracy policy are the automatic base.
+    * -1 (Game default) leaves that decision untouched; an explicit value is
+    * deliberately applied afterwards so the user has final control. */
+   {
+      int v;
+      if (glide64_get_int_option("parallel-n64-glide64-fog", &v) && v >= 0)
+         settings.fog = v;
+      if (glide64_get_int_option("parallel-n64-glide64-buff-clear", &v) && v >= 0)
+         settings.buff_clear = v;
+      if (glide64_get_int_option("parallel-n64-glide64-swapmode", &v) && v >= 0)
+         settings.swapmode = v;
+      if (glide64_get_int_option("parallel-n64-glide64-lodmode", &v) && v >= 0)
+         settings.lodmode = v;
+      if (glide64_get_int_option("parallel-n64-glide64-fb-smart", &v) && v >= 0)
+         smart_read = v;
+      if (glide64_get_int_option("parallel-n64-glide64-fb-render", &v) && v >= 0)
+         depth_render = v;
+      if (glide64_get_int_option("parallel-n64-glide64-fb-crc-mode", &v) && v >= 0)
+         fb_crc_mode = v;
+      if (glide64_get_int_option("parallel-n64-glide64-read-back-to-screen", &v) && v >= 0)
+         read_back_to_screen = v;
+      if (glide64_get_int_option("parallel-n64-glide64-detect-cpu-write", &v) && v >= 0)
+         cpu_write_hack = v;
+      if (glide64_get_int_option("parallel-n64-glide64-alt-tex-size", &v) && v >= 0)
+         settings.alt_tex_size = v;
+      if (glide64_get_int_option("parallel-n64-glide64-force-microcheck", &v) && v >= 0)
+         settings.force_microcheck = v;
+      if (glide64_get_int_option("parallel-n64-glide64-force-quad3d", &v) && v >= 0)
+         settings.force_quad3d = v;
+      if (glide64_get_int_option("parallel-n64-glide64-optimize-texrect", &v) && v >= 0)
+         optimize_texrect = v;
+      if (glide64_get_int_option("parallel-n64-glide64-fb-read-alpha", &v) && v >= 0)
+         read_alpha = v;
+      if (glide64_get_int_option("parallel-n64-glide64-force-calc-sphere", &v) && v >= 0)
+         settings.force_calc_sphere = v;
+      if (glide64_get_int_option("parallel-n64-glide64-increase-texrect-edge", &v) && v >= 0)
+         settings.increase_texrect_edge = v;
+      if (glide64_get_int_option("parallel-n64-glide64-decrease-fillrect-edge", &v) && v >= 0)
+         settings.decrease_fillrect_edge = v;
+      if (glide64_get_int_option("parallel-n64-glide64-stipple-mode", &v) && v >= 0)
+         settings.stipple_mode = v;
+      if (glide64_get_int_option("parallel-n64-glide64-clip-zmin", &v) && v >= 0)
+         settings.clip_zmin = v;
+      if (glide64_get_int_option("parallel-n64-glide64-adjust-aspect", &v) && v >= 0)
+         settings.adjust_aspect = v;
+      if (glide64_get_int_option("parallel-n64-glide64-correct-viewport", &v) && v >= 0)
+         settings.correct_viewport = v;
+      if (glide64_get_int_option("parallel-n64-glide64-zmode-compare-less", &v) && v >= 0)
+         settings.zmode_compare_less = v;
+      if (glide64_get_int_option("parallel-n64-glide64-old-style-adither", &v) && v >= 0)
+         settings.old_style_adither = v;
+      if (glide64_get_int_option("parallel-n64-glide64-n64-z-scale", &v) && v >= 0)
+         settings.n64_z_scale = v;
+      if (glide64_get_int_option("parallel-n64-glide64-pal230", &v) && v >= 0)
+         settings.pal230 = v;
+      if (glide64_get_int_option("parallel-n64-glide64-ignore-aux-copy", &v) && v >= 0)
+         ignore_aux_copy = v;
+      if (glide64_get_int_option("parallel-n64-glide64-useless-is-useless", &v) && v >= 0)
+         useless_is_useless = v;
+      if (glide64_get_int_option("parallel-n64-glide64-fb-read-always", &v) && v >= 0)
+         read_always = v;
    }
 
    if (settings.n64_z_scale)

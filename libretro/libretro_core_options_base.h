@@ -733,6 +733,459 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         },
         "disabled"
     },
+    /* ReARMed final Glide64 + system timing: live Glide64 controls restored from the FZ/mk2 configuration model. */
+    {
+        CORE_NAME "-glide64-fog",
+        "Glide64: Fog",
+        "Fog",
+        "Controla la emulación de niebla del N64. Desactivarla puede reducir ligeramente la carga gráfica, pero elimina efectos de profundidad y atmósfera y puede dejar escenas incorrectas. Game default conserva el perfil específico del juego. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-buff-clear",
+        "Glide64: Buffer Clear",
+        "Buffer Clear",
+        "Controla el borrado de los buffers usados por Glide64 entre renderizados. Activarlo puede corregir restos de cuadros, estelas o contenido antiguo, con un pequeño costo de rendimiento; desactivarlo puede ser necesario en juegos cuyo perfil evita el borrado. Game default conserva ese perfil. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-swapmode",
+        "Glide64: Buffer Swap Mode",
+        "Buffer Swap Mode",
+        "Define cuándo Glide64 intercambia el buffer presentado. Cambiar el momento del swap puede corregir parpadeos o cuadros faltantes, pero un modo inadecuado puede producir imagen inestable, presentación duplicada o errores de sincronización. Game default usa el modo elegido para cada juego. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "VI occurred" },
+            { "1", "Conditional" },
+            { "2", "Mix" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-lodmode",
+        "Glide64: LOD Mode",
+        "LOD Mode",
+        "Controla el cálculo de Level of Detail (LOD) de texturas. Disabled evita el cálculo, Fast usa una aproximación menos costosa y Precise prioriza exactitud. Un valor incorrecto puede seleccionar texturas o mipmaps equivocados; los modos más precisos pueden aumentar la carga gráfica. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Fast" },
+            { "2", "Precise" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-fb-smart",
+        "Glide64: Smart Framebuffer",
+        "Smart Framebuffer",
+        "Activa la emulación inteligente del framebuffer de Glide64. Es necesaria para juegos que renderizan efectos, menús o imágenes intermedias en memoria, pero aumenta el trabajo de copia y detección. Desactivarla puede mejorar rendimiento y también romper esos efectos. Game default conserva la decisión por juego. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-fb-render",
+        "Glide64: Framebuffer Render",
+        "Framebuffer Render",
+        "Controla el renderizado por software del depth buffer dentro de la emulación de framebuffer. Puede ser necesario para efectos que dependen de información de profundidad almacenada en RDRAM, pero es una ruta costosa. Desactivarlo mejora rendimiento cuando el juego no lo necesita y puede causar errores de profundidad si se fuerza incorrectamente. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-fb-crc-mode",
+        "Glide64: Framebuffer CRC Mode",
+        "Framebuffer CRC Mode",
+        "Define cómo Glide64 usa CRC para detectar cambios en framebuffers. Fast reduce comprobaciones, Safe prioriza una detección más fiable y Disabled evita el control. Modos más estrictos pueden costar rendimiento; modos más ligeros pueden no detectar una actualización y mostrar contenido antiguo. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Fast" },
+            { "2", "Safe" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-read-back-to-screen",
+        "Glide64: Read Back to Screen",
+        "Read Back to Screen",
+        "Controla las rutas legacy que vuelven a presentar en pantalla una imagen almacenada en el framebuffer del N64. Algunos juegos dibujan o procesan imágenes en RDRAM y necesitan esta lectura. Activarla incrementa copias de memoria; un modo incorrecto puede causar pantallas faltantes, imágenes duplicadas o pérdida de rendimiento. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Mode 1" },
+            { "2", "Mode 2" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-detect-cpu-write",
+        "Glide64: Detect CPU Write",
+        "Detect CPU Write",
+        "Detecta escrituras realizadas por la CPU directamente sobre el framebuffer para que Glide64 pueda mostrar imágenes que no fueron dibujadas por el RDP. Es necesaria en ciertos juegos y añade trabajo de seguimiento/copia; desactivarla puede ocultar vídeos, menús o efectos escritos por CPU. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-alt-tex-size",
+        "Glide64: Alternate Texture Size",
+        "Alternate Texture Size",
+        "Usa el cálculo alternativo legacy del tamaño de textura. Es un hack de compatibilidad para juegos con tamaños o cargas de textura que el cálculo normal interpreta mal. Forzarlo sin necesidad puede producir texturas deformadas, desplazadas o con tamaño incorrecto. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-force-microcheck",
+        "Glide64: Force Microcode Check",
+        "Force Microcode Check",
+        "Fuerza a Glide64 a volver a comprobar el microcódigo gráfico durante la ejecución. Está pensado para juegos que mezclan microcódigos, como F3DEX y S2DEX. Añade una pequeña sobrecarga, pero desactivarlo en un juego que cambia de microcódigo puede provocar geometría o sprites incorrectos. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-force-quad3d",
+        "Glide64: Force Quad3D",
+        "Force Quad3D",
+        "Fuerza a interpretar el comando gráfico 0xB5 como Quad3D en lugar de Line3D. Es un hack específico para microcódigos/juegos que usan esa codificación. Activarlo en un título que no lo necesita puede convertir líneas o polígonos en geometría incorrecta. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-optimize-texrect",
+        "Glide64: Optimize Texrect",
+        "Optimize Texrect",
+        "Activa la ruta rápida para rectángulos texturizados cuando interviene la emulación de framebuffer. Puede reducir carga en elementos 2D, pero algunos juegos necesitan la ruta completa para efectos que leen o reutilizan el framebuffer. Desactivarlo puede mejorar compatibilidad a costa de rendimiento. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-fb-read-alpha",
+        "Glide64: Framebuffer Read Alpha",
+        "Framebuffer Read Alpha",
+        "Incluye el canal alfa al leer el framebuffer. Es necesario para ciertos efectos de transparencia y composición, pero aumenta el trabajo de lectura/copia. Desactivarlo puede mejorar rendimiento y también producir transparencias, máscaras o capas incorrectas. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-force-calc-sphere",
+        "Glide64: Force Calc Sphere",
+        "Force Calc Sphere",
+        "Fuerza el cálculo de mapeado esférico de texturas. Es un workaround legacy destinado principalmente a juegos que dependen de ese cálculo, como Ridge Racer 64. Forzarlo en otros títulos puede alterar reflejos o coordenadas de textura. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-increase-texrect-edge",
+        "Glide64: Increase Texrect Edge",
+        "Increase Texrect Edge",
+        "Añade un píxel/coordenada al borde inferior derecho de los texture rectangles. Corrige líneas, huecos o bordes faltantes en juegos concretos; aplicado donde no corresponde puede crear solapamientos, bordes extra o pequeños errores de textura. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-decrease-fillrect-edge",
+        "Glide64: Decrease Fillrect Edge",
+        "Decrease Fillrect Edge",
+        "Resta una unidad al borde inferior derecho de los fill rectangles. Corrige sobreextensión y artefactos de relleno en juegos específicos, pero puede dejar huecos o líneas sin cubrir si se fuerza en títulos que usan las coordenadas normales. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-stipple-mode",
+        "Glide64: Stipple Mode",
+        "Stipple Mode",
+        "Selecciona cómo Glide64 emula transparencias basadas en stipple/dithering de alfa. Pattern usa el patrón configurado y Rotate varía el patrón para aproximar el efecto temporal. Un modo incorrecto puede cambiar transparencias, sombras o producir tramado visible. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Pattern" },
+            { "2", "Rotate" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-clip-zmin",
+        "Glide64: Clip Zmin",
+        "Clip Zmin",
+        "Activa el recorte contra el plano Z cercano. Puede corregir polígonos que atraviesan la cámara o geometría inválida en juegos concretos. Forzarlo sin necesidad puede recortar objetos demasiado pronto o hacer desaparecer partes de la escena. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-adjust-aspect",
+        "Glide64: Adjust Aspect",
+        "Adjust Aspect",
+        "Permite que Glide64 ajuste la relación de aspecto usando las escalas VI del juego, especialmente en modos panorámicos o títulos con escalado inusual. Desactivarlo puede evitar correcciones no deseadas; forzarlo puede estirar o comprimir la imagen en juegos que esperan su perfil propio. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-correct-viewport",
+        "Glide64: Correct Viewport",
+        "Correct Viewport",
+        "Aplica la corrección legacy de valores de viewport usada por determinados juegos. Puede arreglar geometría desplazada, recortada o escalada incorrectamente. Activarla en títulos que no la necesitan puede mover o deformar la escena. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-zmode-compare-less",
+        "Glide64: Zmode Compare Less",
+        "Zmode Compare Less",
+        "Fuerza la comparación de profundidad LESS para los Z modes 0 y 1. Es un workaround para errores de oclusión y orden de polígonos. Un ajuste incorrecto puede hacer que objetos aparezcan delante o detrás de donde corresponde o que desaparezcan superficies. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-old-style-adither",
+        "Glide64: Old Style Alpha Dither",
+        "Old Style Alpha Dither",
+        "Aplica el método antiguo de alpha dithering incluso cuando el modo normal de dither no lo pediría. Es necesario para la apariencia/compatibilidad de algunos juegos, incluidos ciertos Castlevania. Puede introducir tramado o ruido visible cuando se fuerza innecesariamente. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-n64-z-scale",
+        "Glide64: N64 Z Scale",
+        "N64 Z Scale",
+        "Escala el valor Z de los vértices antes de escribirlo en el depth buffer siguiendo el comportamiento del N64. Puede corregir precisión y conflictos de profundidad en juegos sensibles. Forzarlo donde no corresponde puede generar z-fighting o cambios en la oclusión y activa la tabla Z necesaria para esa ruta. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-pal230",
+        "Glide64: PAL230",
+        "PAL230",
+        "Usa la escala vertical especial de 230 líneas empleada por algunos juegos PAL. Corrige altura y encuadre cuando el título depende de ese comportamiento; activarla en otros juegos PAL puede comprimir, estirar o desplazar verticalmente la imagen. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-ignore-aux-copy",
+        "Glide64: Ignore Auxiliary Copy",
+        "Ignore Auxiliary Copy",
+        "Evita copiar framebuffers auxiliares de menor tamaño durante la detección de framebuffer. Puede ahorrar trabajo y solucionar casos donde esas copias no deben tratarse como imágenes reutilizables, pero puede romper efectos que realmente dependen de un buffer auxiliar. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-useless-is-useless",
+        "Glide64: Useless Is Useless",
+        "Useless Is Useless",
+        "Hace que un framebuffer que Glide64 detectó como no utilizado permanezca descartado en lugar de promoverlo a buffer auxiliar. Puede evitar procesamiento innecesario y resolver perfiles concretos; si la detección se equivoca, forzarlo puede hacer desaparecer un efecto que sí necesitaba ese buffer. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
+
+    {
+        CORE_NAME "-glide64-fb-read-always",
+        "Glide64: Framebuffer Read Always",
+        "Framebuffer Read Always",
+        "Fuerza la lectura del framebuffer en cada cuadro en lugar de depender de la detección inteligente. Es una ruta de compatibilidad para juegos que reutilizan continuamente imágenes en RDRAM, pero puede ser costosa en hardware modesto. Desactivarla mejora rendimiento cuando no es necesaria y puede perder actualizaciones si el juego depende de ella. Reinicie el contenido después de cambiar esta opción.",
+        NULL,
+        "glide64",
+        {
+            { "-1", "Game default" },
+            { "0", "Disabled" },
+            { "1", "Enabled" },
+            { NULL, NULL },
+        },
+        "-1"
+    },
 #endif
     {
         CORE_NAME "-gfxplugin-accuracy",
@@ -1342,6 +1795,40 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { NULL, NULL },
         },
         "disabled"
+    },
+    /* ReARMed final Glide64 + system timing: advanced core timing controls. */
+    {
+        CORE_NAME "-count-per-op",
+        "Count Per Op",
+        "Count Per Op",
+        "Define cuántos ciclos se contabilizan por operación emulada de la CPU. Cambia el timing general del sistema y puede afectar velocidad, sincronización y compatibilidad de juegos sensibles. Valores incorrectos pueden causar aceleración, ralentización, bloqueos o errores de lógica. Auto conserva el valor específico de la base de compatibilidad del core.",
+        NULL,
+        "system",
+        {
+            { "auto", "Auto" },
+            { "1", "1" },
+            { "2", "2" },
+            { "3", "3" },
+            { NULL, NULL },
+        },
+        "auto"
+    },
+    {
+        CORE_NAME "-si-dma-duration",
+        "SI DMA Duration",
+        "SI DMA Duration",
+        "Define la cantidad de ciclos que tarda una transferencia DMA del Serial Interface (SI). Este temporizado afecta al PIF, mandos, Controller Pak y EEPROM. Valores incorrectos pueden provocar problemas de entrada, guardado o bloqueos en juegos sensibles al timing. Auto utiliza el valor definido por la base de compatibilidad del core; 0x900 es el valor general y 0x64 es el valor histórico usado por Tetris 64.",
+        NULL,
+        "system",
+        {
+            { "auto", "Auto" },
+            { "0", "0 (Immediate)" },
+            { "0x64", "0x64 (Tetris 64)" },
+            { "0x100", "0x100" },
+            { "0x900", "0x900 (Default)" },
+            { NULL, NULL },
+        },
+        "auto"
     },
     {
         CORE_NAME "-virefresh",
