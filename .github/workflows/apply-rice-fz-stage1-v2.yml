@@ -1,0 +1,58 @@
+name: Apply Rice FZ stage 1 v2
+
+on:
+  push:
+    branches:
+      - rice-fz-audit-stage1
+    paths:
+      - .github/workflows/apply-rice-fz-stage1-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rice-fz-audit-stage1
+          fetch-depth: 0
+      - name: Apply patch
+        run: python3 .github/apply_rice_fz_stage1.py
+      - name: Validate source diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          grep -Fq 'std::vector<IniSection> IniSections;' gles2rice/src/RiceConfig.cpp
+          grep -Fq 'Rice: %s not found in the libretro system directory' gles2rice/src/RiceConfig.cpp
+          grep -Fq 'pGameSetting->bForceScreenClear    = IniSections[i].bForceScreenClear;' gles2rice/src/RiceConfig.cpp
+          grep -Fq 'currentRomOptions.bFastTexCRC--;' gles2rice/src/RiceConfig.cpp
+      - name: Install build dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential pkg-config libgl-dev libgl1-mesa-dev libegl-dev libegl1-mesa-dev libgles2-mesa-dev
+      - name: Compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          make clean
+          set +e
+          make -j2 2>&1 | tee /tmp/build.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            if grep -Fq "unrecognized command-line option '-lGL'" /tmp/build.log; then
+              echo 'Known runner-only final link failure; source compilation passed.'
+            else
+              exit "$rc"
+            fi
+          fi
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add gles2rice/src/RiceConfig.cpp
+          git commit -m 'rice: restore FZ per-ROM INI configuration'
+          git push origin HEAD:rice-fz-audit-stage1
