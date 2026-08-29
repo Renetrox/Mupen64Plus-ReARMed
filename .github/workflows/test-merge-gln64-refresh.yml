@@ -1,0 +1,32 @@
+name: Test Glide64 glN64 integration merge
+
+on:
+  push:
+    branches:
+      - gln64-fz-refresh-v2
+    paths:
+      - .github/workflows/test-merge-gln64-refresh.yml
+
+permissions:
+  contents: read
+
+jobs:
+  merge-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gln64-fz-refresh-v2
+          fetch-depth: 0
+      - name: Test merge with current principal branch
+        shell: bash
+        run: |
+          set +e
+          git fetch origin frameskip-modern
+          git merge --no-commit --no-ff origin/frameskip-modern
+          rc=$?
+          echo "merge_rc=$rc"
+          git status --short
+          echo "--- conflicts ---"
+          git diff --name-only --diff-filter=U
+          exit $rc
