@@ -1,0 +1,62 @@
+name: Validate refreshed glN64 integration v2
+
+on:
+  push:
+    branches: [gln64-fz-refresh-final]
+    paths: [.github/workflows/validate-gln64-refresh-v2.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gln64-fz-refresh-final
+          fetch-depth: 0
+
+      - name: Normalize integrated blocks
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '/python3 - <<'\''PY'\''/{flag=1;next} /^          PY$/{flag=0;exit} flag{sub(/^          /,""); print}' \
+            .github/workflows/validate-gln64-refresh.yml > /tmp/normalize.py
+          python3 /tmp/normalize.py
+          git diff --check
+
+      - name: Validate restored option sets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -c 'CORE_NAME \"-glide64-' libretro/libretro_core_options_base.h)" -ge 29
+          test "$(grep -c 'CORE_NAME \"-gln64-' libretro/libretro_core_options_base.h)" -eq 4
+          grep -q 'Enable or disable N64 fog emulation' libretro/libretro_core_options_base.h
+          grep -q 'Read the framebuffer every frame. This is slow' libretro/libretro_core_options_base.h
+          grep -q 'No more than 5 frames' libretro/libretro_core_options_base.h
+          grep -q 'Advanced core timing controls' libretro/libretro_core_options.h
+          grep -q 'parallel-n64-count-per-op' libretro/libretro.c
+          grep -q 'CORE_NAME "-gln64-screen-clear"' libretro/libretro.c
+          grep -q 'GLN64_FRAMESKIP_AUTO_MIN (-5)' gles2n64/src/gles2N64.c
+
+      - name: Compile core
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libgl1-mesa-dev libegl1-mesa-dev
+          make clean
+          make -j2
+
+      - name: Commit normalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add libretro/libretro.c libretro/libretro_core_options_base.h gles2n64/src/gles2N64.c
+          if ! git diff --cached --quiet; then
+            git commit -m "Clean up refreshed glN64 integration"
+            git push origin HEAD:gln64-fz-refresh-final
+          fi
