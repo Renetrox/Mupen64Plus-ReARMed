@@ -198,23 +198,32 @@ void OGLRender::SetZUpdate(bool bZUpdate)
 
 void OGLRender::ApplyZBias(int bias)
 {
-    static int old_bias;
-    float f1 = bias > 0 ? -3.0f : 0.0f;  // z offset = -3.0 * max(abs(dz/dx),abs(dz/dy)) per pixel delta z slope
-    float f2 = bias > 0 ? -3.0f : 0.0f;  // z offset += -3.0 * 1 bit
-
-    if (bias == old_bias)
-        return;
-    old_bias = bias;
+    float f1;
+    float f2;
 
     if (bias > 0)
     {
-        glEnable(GL_POLYGON_OFFSET_FILL);  // enable z offsets
+        if (options.bForcePolygonOffset)
+        {
+            f1 = options.polygonOffsetFactor;
+            f2 = options.polygonOffsetUnits;
+        }
+        else
+        {
+            f1 = -3.0f;
+            f2 = -3.0f;
+        }
+
+        glEnable(GL_POLYGON_OFFSET_FILL);
     }
     else
     {
-        glDisable(GL_POLYGON_OFFSET_FILL);  // disable z offsets
+        f1 = 0.0f;
+        f2 = 0.0f;
+        glDisable(GL_POLYGON_OFFSET_FILL);
     }
-    glPolygonOffset(f1, f2);  // set bias functions
+
+    glPolygonOffset(f1, f2);
 }
 
 void OGLRender::SetZBias(int bias)

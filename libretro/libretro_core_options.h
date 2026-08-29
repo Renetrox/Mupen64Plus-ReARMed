@@ -48,8 +48,8 @@ static struct retro_core_option_v2_category m64p_rearmed_option_cats[] = {
    },
    {
       M64P_REARMED_RICE_CATEGORY_KEY,
-      "Rice",
-      "Configure Rice video plugin options."
+      "Rice settings",
+      "Rice settings"
    },
    {
       "glide64",

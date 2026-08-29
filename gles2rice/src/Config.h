@@ -226,8 +226,11 @@ typedef struct {
     uint32_t  textureEnhancement;
     uint32_t  textureEnhancementControl;
     uint32_t  textureQuality;
-    uint32_t  anisotropicFiltering;
     uint32_t  multiSampling;
+
+    bool    bForcePolygonOffset;
+    float   polygonOffsetFactor;
+    float   polygonOffsetUnits;
     bool    bTexRectOnly;
     bool    bSmallTextureOnly;
     bool    bDumpTexturesToFiles;
@@ -269,10 +272,10 @@ typedef struct {
     uint32_t  N64FrameBufferWriteBackControl;
     uint32_t  N64RenderToTextureEmuType;
     uint32_t  screenUpdateSetting;
-    bool    bNormalCombiner;
-    bool    bNormalBlender;
-    bool    bFastTexCRC;
-    bool    bAccurateTextureMapping;
+    uint32_t  bNormalCombiner;
+    uint32_t  bNormalBlender;
+    uint32_t  bFastTexCRC;
+    uint32_t  bAccurateTextureMapping;
     bool    bInN64Resolution;
     bool    bDoubleSizeForSmallTxtrBuf;
     bool    bSaveVRAM;

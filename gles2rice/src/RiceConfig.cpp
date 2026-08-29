@@ -57,7 +57,7 @@ extern retro_environment_t environ_cb;
 static m64p_handle l_ConfigVideoRice = NULL;
 static m64p_handle l_ConfigVideoGeneral = NULL;
 
-//static int FindIniEntry(uint32_t dwCRC1, uint32_t dwCRC2, uint8_t nCountryID, char* szName, int PrintInfo); 
+static int FindIniEntry(uint32_t dwCRC1, uint32_t dwCRC2, uint8_t nCountryID, char* szName, int PrintInfo);
 
 const char *frameBufferSettings[] =
 {
@@ -145,9 +145,9 @@ GlobalOptions options;
 RomOptions defaultRomOptions;
 RomOptions currentRomOptions;
 FrameBufferOptions frameBufferOptions;
-//std::vector<IniSection> IniSections;
-//bool    bIniIsChanged = false;
-//char    szIniFileName[300];
+std::vector<IniSection> IniSections;
+bool    bIniIsChanged = false;
+char    szIniFileName[300];
 
 SettingInfo TextureQualitySettings[] =
 {
@@ -332,11 +332,7 @@ bool InitConfiguration(void)
     ConfigSetDefaultInt(l_ConfigVideoRice, "FrameBufferSetting", FRM_BUF_NONE, "Frame Buffer Emulation (0=ROM default, 1=disable)");
     ConfigSetDefaultInt(l_ConfigVideoRice, "FrameBufferWriteBackControl", FRM_BUF_WRITEBACK_NORMAL, "Frequency to write back the frame buffer (0=every frame, 1=every other frame, etc)");
     ConfigSetDefaultInt(l_ConfigVideoRice, "RenderToTexture", TXT_BUF_NONE, "Render-to-texture emulation (0=none, 1=ignore, 2=normal, 3=write back, 4=write back and reload)");
-#if defined(WIN32)
-    ConfigSetDefaultInt(l_ConfigVideoRice, "ScreenUpdateSetting", SCREEN_UPDATE_AT_1ST_CI_CHANGE, "Control when the screen will be updated (0=ROM default, 1=VI origin update, 2=VI origin change, 3=CI change, 4=first CI change, 5=first primitive draw, 6=before screen clear, 7=after screen drawn)");  // SCREEN_UPDATE_AT_VI_UPDATE_AND_DRAWN
-#else
-    ConfigSetDefaultInt(l_ConfigVideoRice, "ScreenUpdateSetting", SCREEN_UPDATE_AT_VI_UPDATE, "Control when the screen will be updated (0=ROM default, 1=VI origin update, 2=VI origin change, 3=CI change, 4=first CI change, 5=first primitive draw, 6=before screen clear, 7=after screen drawn)");  // SCREEN_UPDATE_AT_VI_UPDATE_AND_DRAWN
-#endif
+    ConfigSetDefaultInt(l_ConfigVideoRice, "ScreenUpdateSetting", SCREEN_UPDATE_AT_1ST_CI_CHANGE, "Control when the screen will be updated (0=ROM default, 1=VI origin update, 2=VI origin change, 3=CI change, 4=first CI change, 5=first primitive draw, 6=before screen clear, 7=after screen drawn)");
     ConfigSetDefaultBool(l_ConfigVideoRice, "NormalAlphaBlender", false, "Force to use normal alpha blender");
     ConfigSetDefaultBool(l_ConfigVideoRice, "FastTextureLoading", false, "Use a faster algorithm to speed up texture loading and CRC computation");
     ConfigSetDefaultBool(l_ConfigVideoRice, "AccurateTextureMapping", true, "Use different texture coordinate clamping code");
@@ -355,10 +351,9 @@ bool InitConfiguration(void)
     ConfigSetDefaultBool(l_ConfigVideoRice, "LoadHiResCRCOnly", true, "Select hi-resolution textures based only on the CRC and ignore format+size information (Glide64 compatibility)");
     ConfigSetDefaultBool(l_ConfigVideoRice, "LoadHiResTextures", false, "Enable hi-resolution texture file loading");
     ConfigSetDefaultBool(l_ConfigVideoRice, "DumpTexturesToFiles", false, "Enable texture dumping");
-    ConfigSetDefaultBool(l_ConfigVideoRice, "ShowFPS", false, "Display On-screen FPS");
 
     ConfigSetDefaultInt(l_ConfigVideoRice, "Mipmapping", 2, "Use Mipmapping? 0=no, 1=nearest, 2=bilinear, 3=trilinear");
-    ConfigSetDefaultInt(l_ConfigVideoRice, "FogMethod", 0, "Enable, Disable or Force fog generation (0=Disable, 1=Enable n64 choose, 2=Force Fog)");
+    ConfigSetDefaultInt(l_ConfigVideoRice, "FogMethod", 1, "Enable, Disable or Force fog generation (0=Disable, 1=Enable n64 choose, 2=Force Fog)");
     ConfigSetDefaultInt(l_ConfigVideoRice, "ForceTextureFilter", 0, "Force to use texture filtering or not (0=auto: n64 choose, 1=force no filtering, 2=force filtering)");
     ConfigSetDefaultInt(l_ConfigVideoRice, "TextureEnhancement", 0, "Primary texture enhancement filter (0=None, 1=2X, 2=2XSAI, 3=HQ2X, 4=LQ2X, 5=HQ4X, 6=Sharpen, 7=Sharpen More, 8=External, 9=Mirrored)");
     ConfigSetDefaultInt(l_ConfigVideoRice, "TextureEnhancementControl", 0, "Secondary texture enhancement filter (0 = none, 1-4 = filtered)");
@@ -367,6 +362,9 @@ bool InitConfiguration(void)
     ConfigSetDefaultInt(l_ConfigVideoRice, "MultiSampling", 0, "Enable/Disable MultiSampling (0=off, 2,4,8,16=quality)");
     ConfigSetDefaultInt(l_ConfigVideoRice, "ColorQuality", TEXTURE_FMT_A8R8G8B8, "Color bit depth for rendering window (0=32 bits, 1=16 bits)");
     ConfigSetDefaultInt(l_ConfigVideoRice, "OpenGLRenderSetting", OGL_DEVICE, "OpenGL level to support (0=auto, 1=OGL_1.1, 2=OGL_1.2, 3=OGL_1.3, 4=OGL_1.4, 5=OGL_1.4_V2, 6=OGL_TNT2, 7=NVIDIA_OGL, 8=OGL_FRAGMENT_PROGRAM)");
+    ConfigSetDefaultBool(l_ConfigVideoRice, "ForcePolygonOffset", false, "Force polygon offset values");
+    ConfigSetDefaultFloat(l_ConfigVideoRice, "PolygonOffsetFactor", 0.0f, "Polygon offset factor");
+    ConfigSetDefaultFloat(l_ConfigVideoRice, "PolygonOffsetUnits", 0.0f, "Polygon offset units");
     return true;
 }
 
@@ -381,6 +379,77 @@ bool isMMXSupported()
       return true;
    
    return false; 
+}
+
+/*
+ * Mupen64Plus FZ Rice frontend bridge.
+ *
+ * FZ exposes Rice controls in its frontend and writes those values into
+ * Video-Rice before the plugin consumes them. In this libretro port, only
+ * controls whose implementation is still present are exposed.
+ *
+ * FZ also writes Mipmapping=0 without exposing it as a Rice setting.
+ * Preserve that effective FZ value here.
+ */
+static bool RiceGetCoreOption(const char *key, const char **value)
+{
+   struct retro_variable var = { key, NULL };
+
+   if (environ_cb &&
+       environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) &&
+       var.value)
+   {
+      *value = var.value;
+      return true;
+   }
+
+   return false;
+}
+
+static bool RiceCoreOptionEnabled(const char *value)
+{
+   if (!value)
+      return false;
+
+   /* "1" keeps compatibility with the old Renetrox Rice frameskip option. */
+   return strcmp(value, "enabled") == 0 ||
+          strcmp(value, "1") == 0 ||
+          strcmp(value, "True") == 0 ||
+          strcmp(value, "true") == 0;
+}
+
+static void ApplyLibretroRiceSettings(void)
+{
+   const char *value = NULL;
+   int v;
+
+   /*
+    * FZ NativeConfigFiles.java writes Mipmapping=0 unconditionally.
+    * It is intentionally not exposed in FZ's Rice settings UI.
+    */
+   options.mipmapping = TEXTURE_NO_MIPMAP;
+
+   if (RiceGetCoreOption("parallel-n64-rice-frameskip", &value))
+      options.bSkipFrame = RiceCoreOptionEnabled(value);
+
+   if (RiceGetCoreOption("parallel-n64-rice-fog", &value))
+      options.fogMethod = RiceCoreOptionEnabled(value) ? 1 : 0;
+
+   if (RiceGetCoreOption("parallel-n64-rice-fast-texture", &value))
+      defaultRomOptions.bFastTexCRC =
+         RiceCoreOptionEnabled(value) ? 1 : 0;
+
+   if (RiceGetCoreOption("parallel-n64-rice-texture-filtering", &value))
+      options.forceTextureFilter =
+         RiceCoreOptionEnabled(value) ? 2 : 0;
+
+   if (RiceGetCoreOption("parallel-n64-rice-screen-update", &value))
+   {
+      v = atoi(value);
+      if (v >= 0 && v <= 7)
+         defaultRomOptions.screenUpdateSetting = (uint32_t)v;
+   }
+
 }
 
 static void ReadConfiguration(void)
@@ -425,22 +494,13 @@ static void ReadConfiguration(void)
    options.bOGLVertexClipper = ConfigGetParamBool(l_ConfigVideoRice, "OpenGLVertexClipper");
    options.bSkipFrame = ConfigGetParamBool(l_ConfigVideoRice, "SkipFrame");
 
-   /* Renetrox frameskip: expose Rice's dormant SkipFrame setting through
-    * libretro Core Options. Keep the original Rice config value as fallback. */
-   {
-      struct retro_variable rice_frameskip_var = { "parallel-n64-rice-frameskip", NULL };
-      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &rice_frameskip_var) &&
-          rice_frameskip_var.value)
-         options.bSkipFrame = strcmp(rice_frameskip_var.value, "1") == 0;
-   }
    options.bTexRectOnly = ConfigGetParamBool(l_ConfigVideoRice, "TexRectOnly");
    options.bSmallTextureOnly = ConfigGetParamBool(l_ConfigVideoRice, "SmallTextureOnly");
    options.bLoadHiResTextures = ConfigGetParamBool(l_ConfigVideoRice, "LoadHiResTextures");
    options.bLoadHiResCRCOnly = ConfigGetParamBool(l_ConfigVideoRice, "LoadHiResCRCOnly");
    options.bDumpTexturesToFiles = ConfigGetParamBool(l_ConfigVideoRice, "DumpTexturesToFiles");
 
-   options.mipmapping = TEXTURE_NO_MIPMAP;
-   //options.mipmapping = ConfigGetParamInt(l_ConfigVideoRice, "Mipmapping");
+   options.mipmapping = ConfigGetParamInt(l_ConfigVideoRice, "Mipmapping");
    options.fogMethod = ConfigGetParamInt(l_ConfigVideoRice, "FogMethod");
    options.forceTextureFilter = ConfigGetParamInt(l_ConfigVideoRice, "ForceTextureFilter");
    options.textureEnhancement = ConfigGetParamInt(l_ConfigVideoRice, "TextureEnhancement");
@@ -450,6 +510,11 @@ static void ReadConfiguration(void)
    options.multiSampling = ConfigGetParamInt(l_ConfigVideoRice, "MultiSampling");
    options.colorQuality = ConfigGetParamInt(l_ConfigVideoRice, "ColorQuality");
    options.OpenglRenderSetting = ConfigGetParamInt(l_ConfigVideoRice, "OpenGLRenderSetting");
+   options.bForcePolygonOffset = ConfigGetParamBool(l_ConfigVideoRice, "ForcePolygonOffset");
+   options.polygonOffsetFactor = ConfigGetParamFloat(l_ConfigVideoRice, "PolygonOffsetFactor");
+   options.polygonOffsetUnits = ConfigGetParamFloat(l_ConfigVideoRice, "PolygonOffsetUnits");
+
+   ApplyLibretroRiceSettings();
 
    CDeviceBuilder::SelectDeviceType((SupportedDeviceType)options.OpenglRenderSetting);
 
@@ -459,17 +524,19 @@ static void ReadConfiguration(void)
     
 bool LoadConfiguration(void)
 {
-#if 0
     IniSections.clear();
     bIniIsChanged = false;
     strcpy(szIniFileName, INI_FILE);
 
+    /* Mupen64Plus FZ loads RiceVideoLinux.ini before applying per-ROM
+     * settings. The libretro fork had this path compiled out, which made
+     * every Rice INI hack a no-op. Keep the file optional for libretro:
+     * when it is absent from RetroArch's system directory Rice continues
+     * with plugin defaults instead of failing content startup. */
     if (!ReadIniFile())
-    {
-        DebugMessage(M64MSG_ERROR, "Unable to read ini file from disk");
-        return false;
-    }
-#endif
+        DebugMessage(M64MSG_WARNING,
+                     "Rice: %s not found in the libretro system directory; per-ROM Rice hacks are disabled",
+                     INI_FILE);
 
     if (l_ConfigVideoGeneral == NULL || l_ConfigVideoRice == NULL)
     {
@@ -644,7 +711,6 @@ void GenerateCurrentRomOptions()
     if( currentRomOptions.N64RenderToTextureEmuType == 0 )  currentRomOptions.N64RenderToTextureEmuType = defaultRomOptions.N64RenderToTextureEmuType;
     else currentRomOptions.N64RenderToTextureEmuType--;
     if( currentRomOptions.screenUpdateSetting == 0 )        currentRomOptions.screenUpdateSetting = defaultRomOptions.screenUpdateSetting;
-#if 0
     if( currentRomOptions.bNormalCombiner == 0 )            currentRomOptions.bNormalCombiner = defaultRomOptions.bNormalCombiner;
     else currentRomOptions.bNormalCombiner--;
     if( currentRomOptions.bNormalBlender == 0 )             currentRomOptions.bNormalBlender = defaultRomOptions.bNormalBlender;
@@ -653,7 +719,6 @@ void GenerateCurrentRomOptions()
     else currentRomOptions.bFastTexCRC--;
     if( currentRomOptions.bAccurateTextureMapping == 0 )    currentRomOptions.bAccurateTextureMapping = defaultRomOptions.bAccurateTextureMapping;
     else currentRomOptions.bAccurateTextureMapping--;
-#endif
 
     options.bUseFullTMEM = ((options.bFullTMEM && (g_curRomInfo.dwFullTMEM == 0)) || g_curRomInfo.dwFullTMEM == 2);
 
@@ -667,7 +732,6 @@ void GenerateCurrentRomOptions()
 
 void Ini_GetRomOptions(LPGAMESETTING pGameSetting)
 {
-#if 0
     int i;
 
     i = FindIniEntry(pGameSetting->romheader.dwCRC1,
@@ -704,7 +768,6 @@ void Ini_GetRomOptions(LPGAMESETTING pGameSetting)
     pGameSetting->dwFrameBufferOption   = IniSections[i].dwFrameBufferOption;
     pGameSetting->dwRenderToTextureOption   = IniSections[i].dwRenderToTextureOption;
     pGameSetting->dwScreenUpdateSetting = IniSections[i].dwScreenUpdateSetting;
-#endif
 }
 
 void Ini_StoreRomOptions(LPGAMESETTING pGameSetting)
@@ -867,9 +930,8 @@ void Ini_StoreRomOptions(LPGAMESETTING pGameSetting)
 #endif
 }
 
-//std::ifstream& getline( std::ifstream &is, char *str );
+std::ifstream& getline(std::ifstream &is, char *str);
 
-#if 0
 char * left(const char * src, int nchars)
 {
     static char dst[300];
@@ -899,7 +961,7 @@ char * tidy(char * s)
     char * p = s + strlen(s);
 
     p--;
-    while (p >= s && (*p == ' ' || *p == 0xa || *p == '\n') )
+    while (p >= s && (*p == ' ' || *p == '\r' || *p == '\n') )
     {
         *p = 0;
         p--;
@@ -913,6 +975,8 @@ bool ReadIniFile()
     std::ifstream inifile;
     char readinfo[100];
     const char *ini_filepath = ConfigGetSharedDataFilepath(szIniFileName);
+    if (ini_filepath == NULL)
+        return false;
 
     DebugMessage(M64MSG_VERBOSE, "Reading .ini file: %s", ini_filepath);
     inifile.open(ini_filepath);
@@ -967,14 +1031,11 @@ bool ReadIniFile()
                 newsection.dwRenderToTextureOption = 0;
                 newsection.dwScreenUpdateSetting = 0;
 
-#if 0
                 IniSections.push_back(newsection);
-#endif
 
             }
             else
             {       
-#if 0
                 int sectionno = IniSections.size() - 1;
 
                 if (strcasecmp(left(readinfo,4), "Name")==0)
@@ -1060,7 +1121,6 @@ bool ReadIniFile()
 
                 if (strcasecmp(left(readinfo,19), "ScreenUpdateSetting")==0)
                     IniSections[sectionno].dwScreenUpdateSetting = strtol(right(readinfo,1),NULL,10);
-#endif
             }
         }
     }
@@ -1279,8 +1339,6 @@ void OutputSectionDetails(uint32_t i, FILE * fh)
 // Find the entry corresponding to the specified rom. 
 // If the rom is not found, a new entry is created
 // The resulting value is returned
-void __cdecl DebuggerAppendMsg (const char * Message, ...);
-
 static int FindIniEntry(uint32_t dwCRC1, uint32_t dwCRC2, uint8_t nCountryID, char* szName, int PrintInfo)
 {
     uint32_t i;
@@ -1342,7 +1400,6 @@ static int FindIniEntry(uint32_t dwCRC1, uint32_t dwCRC2, uint8_t nCountryID, ch
     bIniIsChanged = true;               // Flag to indicate we should be updated
     return IniSections.size()-1;            // -1 takes into account increment
 }
-#endif
 
 GameSetting g_curRomInfo;
 

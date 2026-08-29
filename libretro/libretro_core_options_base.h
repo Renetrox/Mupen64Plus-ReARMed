@@ -1521,17 +1521,79 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 #ifdef HAVE_RICE
     {
         CORE_NAME "-rice-frameskip",
-        "(Rice) Frameskip",
-        "Frameskip",
-        "Skip every other Rice graphics display list before rendering it. This may improve performance on low-power hardware at the cost of visual smoothness.",
+        "Auto frameskip",
+        "Auto frameskip",
+        "Improves game speed at cost of framerate",
         NULL,
         NULL,
         {
             { "disabled", "Disabled" },
-            { "1", "1 (Skip every other frame)" },
+            { "enabled",  "Enabled" },
+            { NULL, NULL },
+        },
+        "enabled"
+    },
+    {
+        CORE_NAME "-rice-fog",
+        "Fog",
+        "Fog",
+        "Show fog effects",
+        NULL,
+        NULL,
+        {
+            { "disabled", "Disabled" },
+            { "enabled",  "Enabled" },
+            { NULL, NULL },
+        },
+        "enabled"
+    },
+    {
+        CORE_NAME "-rice-fast-texture",
+        "Fast texture loading",
+        "Fast texture loading",
+        "Fixes circle transitions",
+        NULL,
+        NULL,
+        {
+            { "disabled", "Disabled" },
+            { "enabled",  "Enabled" },
             { NULL, NULL },
         },
         "disabled"
+    },
+    {
+        CORE_NAME "-rice-texture-filtering",
+        "Texture filtering",
+        "Texture filtering",
+        "Fixes texture shimmering and blur on distant objects",
+        NULL,
+        NULL,
+        {
+            { "disabled", "Disabled" },
+            { "enabled",  "Enabled" },
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+    {
+        CORE_NAME "-rice-screen-update",
+        "Screen update method",
+        "Screen update method",
+        NULL,
+        NULL,
+        NULL,
+        {
+            { "0", "ROM default" },
+            { "1", "VI origin update" },
+            { "2", "VI origin change" },
+            { "3", "CI change" },
+            { "4", "First CI change" },
+            { "5", "First primitive draw" },
+            { "6", "Before screen clear" },
+            { "7", "After screen drawn" },
+            { NULL, NULL },
+        },
+        "4"
     },
 #endif
     {
