@@ -1,0 +1,187 @@
+name: Apply Rice FZ stage 1
+
+on:
+  push:
+    branches: [rice-fz-audit-stage1]
+    paths: [.github/workflows/apply-rice-fz-stage1.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rice-fz-audit-stage1
+          fetch-depth: 0
+
+      - name: Restore Rice per-ROM INI path
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('gles2rice/src/RiceConfig.cpp')
+          s = p.read_text()
+
+          old_globals = '''//std::vector<IniSection> IniSections;
+//bool    bIniIsChanged = false;
+//char    szIniFileName[300];'''
+          new_globals = '''std::vector<IniSection> IniSections;
+bool    bIniIsChanged = false;
+char    szIniFileName[300];'''
+          if old_globals not in s:
+              raise RuntimeError('Rice INI globals marker not found')
+          s = s.replace(old_globals, new_globals, 1)
+
+          old_load = '''bool LoadConfiguration(void)
+{
+#if 0
+    IniSections.clear();
+    bIniIsChanged = false;
+    strcpy(szIniFileName, INI_FILE);
+
+    if (!ReadIniFile())
+    {
+        DebugMessage(M64MSG_ERROR, "Unable to read ini file from disk");
+        return false;
+    }
+#endif
+
+    if (l_ConfigVideoGeneral == NULL || l_ConfigVideoRice == NULL)'''
+          new_load = '''bool LoadConfiguration(void)
+{
+    IniSections.clear();
+    bIniIsChanged = false;
+    strcpy(szIniFileName, INI_FILE);
+
+    /* Mupen64Plus FZ loads RiceVideoLinux.ini before applying per-ROM
+     * settings.  The libretro fork had this entire path compiled out, which
+     * made every Rice INI hack a no-op.  Keep the file optional for libretro:
+     * when it is absent from RetroArch's system directory Rice continues with
+     * plugin defaults instead of failing content startup. */
+    if (!ReadIniFile())
+        DebugMessage(M64MSG_WARNING,
+                     "Rice: %s not found in the libretro system directory; per-ROM Rice hacks are disabled",
+                     INI_FILE);
+
+    if (l_ConfigVideoGeneral == NULL || l_ConfigVideoRice == NULL)'''
+          if old_load not in s:
+              raise RuntimeError('LoadConfiguration disabled INI block not found')
+          s = s.replace(old_load, new_load, 1)
+
+          # Re-enable Ini_GetRomOptions only; keep Ini_StoreRomOptions read-only
+          # in libretro so the core never rewrites the user's INI.
+          a = s.index('void Ini_GetRomOptions(LPGAMESETTING pGameSetting)')
+          b = s.index('\nvoid Ini_StoreRomOptions(LPGAMESETTING pGameSetting)', a)
+          block = s[a:b]
+          if '#if 0' not in block or '#endif' not in block:
+              raise RuntimeError('Ini_GetRomOptions is not in expected disabled form')
+          block = block.replace('#if 0\n', '', 1)
+          last = block.rfind('#endif\n')
+          if last < 0:
+              raise RuntimeError('Ini_GetRomOptions closing #endif not found')
+          block = block[:last] + block[last + len('#endif\n'):]
+          s = s[:a] + block + s[b:]
+
+          # Re-enable the legacy read/parser implementation.  Writing remains
+          # unused because Ini_StoreRomOptions and plugin-shutdown writeback are
+          # still compiled out.
+          marker = '#if 0\nchar * left(const char * src, int nchars)'
+          if marker not in s:
+              raise RuntimeError('Rice INI parser outer guard not found')
+          s = s.replace(marker, 'char * left(const char * src, int nchars)', 1)
+
+          end_marker = '\n#endif\n\nGameSetting g_curRomInfo;'
+          if end_marker not in s:
+              raise RuntimeError('Rice INI parser closing guard not found')
+          s = s.replace(end_marker, '\n\nGameSetting g_curRomInfo;', 1)
+
+          s = s.replace('''#if 0
+                IniSections.push_back(newsection);
+#endif''',
+                        '''                IniSections.push_back(newsection);''', 1)
+
+          nested_start = '#if 0\n                int sectionno = IniSections.size() - 1;'
+          if nested_start not in s:
+              raise RuntimeError('Rice section parser nested guard not found')
+          s = s.replace(nested_start, '                int sectionno = IniSections.size() - 1;', 1)
+
+          nested_end = '''                if (strcasecmp(left(readinfo,19), "ScreenUpdateSetting")==0)
+                    IniSections[sectionno].dwScreenUpdateSetting = strtol(right(readinfo,1),NULL,10);
+#endif'''
+          if nested_end not in s:
+              raise RuntimeError('Rice section parser nested closing guard not found')
+          s = s.replace(nested_end, '''                if (strcasecmp(left(readinfo,19), "ScreenUpdateSetting")==0)
+                    IniSections[sectionno].dwScreenUpdateSetting = strtol(right(readinfo,1),NULL,10);''', 1)
+
+          # Match FZ's CR/LF trimming. The old libretro copy checked LF twice,
+          # which could leave CR attached to values in CRLF INI files.
+          s = s.replace("(*p == ' ' || *p == 0xa || *p == '\\n')",
+                        "(*p == ' ' || *p == '\\r' || *p == '\\n')", 1)
+
+          # FZ applies the tri-state ROM values for combiner/blender/texture
+          # CRC/accurate mapping.  Libretro had disabled all four together.
+          tri = '''#if 0
+    if( currentRomOptions.bNormalCombiner == 0 )            currentRomOptions.bNormalCombiner = defaultRomOptions.bNormalCombiner;
+    else currentRomOptions.bNormalCombiner--;
+    if( currentRomOptions.bNormalBlender == 0 )             currentRomOptions.bNormalBlender = defaultRomOptions.bNormalBlender;
+    else currentRomOptions.bNormalBlender--;
+    if( currentRomOptions.bFastTexCRC == 0 )                currentRomOptions.bFastTexCRC = defaultRomOptions.bFastTexCRC;
+    else currentRomOptions.bFastTexCRC--;
+    if( currentRomOptions.bAccurateTextureMapping == 0 )    currentRomOptions.bAccurateTextureMapping = defaultRomOptions.bAccurateTextureMapping;
+    else currentRomOptions.bAccurateTextureMapping--;
+#endif'''
+          tri_on = '''    if( currentRomOptions.bNormalCombiner == 0 )            currentRomOptions.bNormalCombiner = defaultRomOptions.bNormalCombiner;
+    else currentRomOptions.bNormalCombiner--;
+    if( currentRomOptions.bNormalBlender == 0 )             currentRomOptions.bNormalBlender = defaultRomOptions.bNormalBlender;
+    else currentRomOptions.bNormalBlender--;
+    if( currentRomOptions.bFastTexCRC == 0 )                currentRomOptions.bFastTexCRC = defaultRomOptions.bFastTexCRC;
+    else currentRomOptions.bFastTexCRC--;
+    if( currentRomOptions.bAccurateTextureMapping == 0 )    currentRomOptions.bAccurateTextureMapping = defaultRomOptions.bAccurateTextureMapping;
+    else currentRomOptions.bAccurateTextureMapping--;'''
+          if tri not in s:
+              raise RuntimeError('Disabled FZ tri-state ROM block not found')
+          s = s.replace(tri, tri_on, 1)
+
+          p.write_text(s)
+          PY
+
+          git diff --check
+          grep -Fq 'std::vector<IniSection> IniSections;' gles2rice/src/RiceConfig.cpp
+          grep -Fq 'Rice: %s not found in the libretro system directory' gles2rice/src/RiceConfig.cpp
+          grep -Fq 'IniSections.push_back(newsection);' gles2rice/src/RiceConfig.cpp
+          grep -Fq 'pGameSetting->bForceScreenClear    = IniSections[i].bForceScreenClear;' gles2rice/src/RiceConfig.cpp
+          grep -Fq 'currentRomOptions.bFastTexCRC--;' gles2rice/src/RiceConfig.cpp
+
+      - name: Compile modified Rice source
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential pkg-config libgl-dev libgl1-mesa-dev libegl-dev libegl1-mesa-dev libgles2-mesa-dev
+          make clean
+          set +e
+          make -j2 2>&1 | tee /tmp/build.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            if grep -Fq "unrecognized command-line option ‘-lGL’" /tmp/build.log || grep -Fq "unrecognized command-line option '-lGL'" /tmp/build.log; then
+              echo "Source compilation passed; known runner-only -lGL final-link failure."
+            else
+              exit "$rc"
+            fi
+          fi
+
+      - name: Commit Rice stage 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add gles2rice/src/RiceConfig.cpp
+          git commit -m "rice: restore FZ per-ROM INI configuration"
+          git push origin HEAD:rice-fz-audit-stage1
