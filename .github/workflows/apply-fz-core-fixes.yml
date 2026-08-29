@@ -102,25 +102,29 @@ jobs:
           dyna = dyna.replace(unsafe_constmap, 'constmap[i][safe_regmap_index(s)]')
 
           # 3) Ari64: protect i-1 in the delay-slot allocation path (Indiana Jones fix).
-          old_ds = '''      if(i+1<slen) {
-                current.u=branch_unneeded_reg[i-1]&unneeded_reg[i+1];
-                current.uu=branch_unneeded_reg_upper[i-1]&unneeded_reg_upper[i+1];
-              }else{
-                current.u=branch_unneeded_reg[i-1];
-                current.uu=branch_unneeded_reg_upper[i-1];
-              }
-          '''
-          new_ds = '''      if(i+1<slen) {
-                current.u=branch_unneeded_reg[(i > 0) ? i-1 : 0]&unneeded_reg[i+1];
-                current.uu=branch_unneeded_reg_upper[(i > 0) ? i-1 : 0]&unneeded_reg_upper[i+1];
-              }else{
-                current.u=branch_unneeded_reg[(i > 0) ? i-1 : 0];
-                current.uu=branch_unneeded_reg_upper[(i > 0) ? i-1 : 0];
-              }
-          '''
-          if old_ds not in dyna:
-              raise SystemExit('Indiana Jones delay-slot block no longer matches expected source')
-          dyna = dyna.replace(old_ds, new_ds, 1)
+          anchor = '// ...but we need to alloc it in case something jumps here'
+          start = dyna.find(anchor)
+          if start < 0:
+              raise SystemExit('Could not locate Indiana Jones delay-slot anchor')
+          end = dyna.find('current.u&=', start)
+          if end < 0:
+              raise SystemExit('Could not locate end of delay-slot allocation block')
+          block = dyna[start:end]
+          replacements = [
+              ('current.u=branch_unneeded_reg[i-1]&unneeded_reg[i+1];',
+               'current.u=branch_unneeded_reg[(i > 0) ? i-1 : 0]&unneeded_reg[i+1];'),
+              ('current.uu=branch_unneeded_reg_upper[i-1]&unneeded_reg_upper[i+1];',
+               'current.uu=branch_unneeded_reg_upper[(i > 0) ? i-1 : 0]&unneeded_reg_upper[i+1];'),
+              ('current.u=branch_unneeded_reg[i-1];',
+               'current.u=branch_unneeded_reg[(i > 0) ? i-1 : 0];'),
+              ('current.uu=branch_unneeded_reg_upper[i-1];',
+               'current.uu=branch_unneeded_reg_upper[(i > 0) ? i-1 : 0];'),
+          ]
+          for old, new in replacements:
+              if old not in block:
+                  raise SystemExit(f'Missing expected delay-slot expression: {old}')
+              block = block.replace(old, new, 1)
+          dyna = dyna[:start] + block + dyna[end:]
           dyna_path.write_text(dyna)
 
           print(f'Protected {unsafe_count} constmap[i][s] accesses')
