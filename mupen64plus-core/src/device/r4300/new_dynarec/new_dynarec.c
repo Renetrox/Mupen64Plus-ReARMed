@@ -335,6 +335,11 @@ static void clear_all_regs(signed char regmap[])
   for (hr=0;hr<HOST_REGS;hr++) regmap[hr]=-1;
 }
 
+static inline int safe_regmap_index(int index)
+{
+  return index < 0 ? 0 : index;
+}
+
 static signed char get_reg(signed char regmap[],int r)
 {
   int hr;
@@ -6131,7 +6136,7 @@ static void imm16_assemble(int i,struct regstat *i_regs)
               if(!((i_regs->wasconst>>s)&1))
                 emit_addimm(s,imm[i],t);
               else
-                emit_movimm(constmap[i][s]+imm[i],t);
+                emit_movimm(constmap[i][safe_regmap_index(s)]+imm[i],t);
             }
           }
         }
@@ -6449,8 +6454,8 @@ static void load_assemble(int i,struct regstat *i_regs)
   if(i_regs->regmap[HOST_CCREG]==CCREG) reglist&=~(1<<HOST_CCREG);
   if(s>=0) {
     c=(i_regs->wasconst>>s)&1;
-    memtarget=c&&((signed int)(constmap[i][s]+offset))<(signed int)0x80800000;
-    if(c&&using_tlb&&((signed int)(constmap[i][s]+offset))>=(signed int)0xC0000000) memtarget=1;
+    memtarget=c&&((signed int)(constmap[i][safe_regmap_index(s)]+offset))<(signed int)0x80800000;
+    if(c&&using_tlb&&((signed int)(constmap[i][safe_regmap_index(s)]+offset))>=(signed int)0xC0000000) memtarget=1;
   }
 
   int temp=get_reg(i_regs->regmap,agr);
@@ -6511,41 +6516,41 @@ static void load_assemble(int i,struct regstat *i_regs)
     cache=get_reg(i_regs->regmap,MMREG);
     assert(map>=0);
     reglist&=~(1<<map);
-    map=do_tlb_r(addr,temp,map,cache,x,c,constmap[i][s]+offset);
-    do_tlb_r_branch(map,c,constmap[i][s]+offset,&jaddr);
+    map=do_tlb_r(addr,temp,map,cache,x,c,constmap[i][safe_regmap_index(s)]+offset);
+    do_tlb_r_branch(map,c,constmap[i][safe_regmap_index(s)]+offset,&jaddr);
   }
 
   if((!c||memtarget)&&!dummy) {
     if (opcode[i]==0x20) { // LB
       #ifdef HOST_IMM_ADDR32
       if(c)
-        emit_movsbl_tlb((constmap[i][s]+offset)^3,map,tl);
+        emit_movsbl_tlb((constmap[i][safe_regmap_index(s)]+offset)^3,map,tl);
       else
       #endif
       {
         int x=0;
         if(!c) emit_xorimm(addr,3,temp);
-        else x=((constmap[i][s]+offset)^3)-(constmap[i][s]+offset);
+        else x=((constmap[i][safe_regmap_index(s)]+offset)^3)-(constmap[i][safe_regmap_index(s)]+offset);
         emit_movsbl_indexed_tlb(x,temp,map,tl);
       }
     }
     else if (opcode[i]==0x21) { // LH
       #ifdef HOST_IMM_ADDR32
       if(c)
-        emit_movswl_tlb((constmap[i][s]+offset)^2,map,tl);
+        emit_movswl_tlb((constmap[i][safe_regmap_index(s)]+offset)^2,map,tl);
       else
       #endif
       {
         int x=0;
         if(!c) emit_xorimm(addr,2,temp);
-        else x=((constmap[i][s]+offset)^2)-(constmap[i][s]+offset);
+        else x=((constmap[i][safe_regmap_index(s)]+offset)^2)-(constmap[i][safe_regmap_index(s)]+offset);
         emit_movswl_indexed_tlb(x,temp,map,tl);
       }
     }
     else if (opcode[i]==0x23) { // LW
       #ifdef HOST_IMM_ADDR32
       if(c)
-        emit_readword_tlb(constmap[i][s]+offset,map,tl);
+        emit_readword_tlb(constmap[i][safe_regmap_index(s)]+offset,map,tl);
       else
       #endif
       emit_readword_indexed_tlb(0,addr,map,tl);
@@ -6553,26 +6558,26 @@ static void load_assemble(int i,struct regstat *i_regs)
     else if (opcode[i]==0x24) { // LBU
       #ifdef HOST_IMM_ADDR32
       if(c)
-        emit_movzbl_tlb((constmap[i][s]+offset)^3,map,tl);
+        emit_movzbl_tlb((constmap[i][safe_regmap_index(s)]+offset)^3,map,tl);
       else
       #endif
       {
         int x=0;
         if(!c) emit_xorimm(addr,3,temp);
-        else x=((constmap[i][s]+offset)^3)-(constmap[i][s]+offset);
+        else x=((constmap[i][safe_regmap_index(s)]+offset)^3)-(constmap[i][safe_regmap_index(s)]+offset);
         emit_movzbl_indexed_tlb(x,temp,map,tl);
       }
     }
     else if (opcode[i]==0x25) { // LHU
       #ifdef HOST_IMM_ADDR32
       if(c)
-        emit_movzwl_tlb((constmap[i][s]+offset)^2,map,tl);
+        emit_movzwl_tlb((constmap[i][safe_regmap_index(s)]+offset)^2,map,tl);
       else
       #endif
       {
         int x=0;
         if(!c) emit_xorimm(addr,2,temp);
-        else x=((constmap[i][s]+offset)^2)-(constmap[i][s]+offset);
+        else x=((constmap[i][safe_regmap_index(s)]+offset)^2)-(constmap[i][safe_regmap_index(s)]+offset);
         emit_movzwl_indexed_tlb(x,temp,map,tl);
       }
     }
@@ -6580,7 +6585,7 @@ static void load_assemble(int i,struct regstat *i_regs)
       assert(th>=0);
       #ifdef HOST_IMM_ADDR32
       if(c)
-        emit_readword_tlb(constmap[i][s]+offset,map,tl);
+        emit_readword_tlb(constmap[i][safe_regmap_index(s)]+offset,map,tl);
       else
       #endif
       emit_readword_indexed_tlb(0,addr,map,tl);
@@ -6589,7 +6594,7 @@ static void load_assemble(int i,struct regstat *i_regs)
     else if (opcode[i]==0x37) { // LD
       #ifdef HOST_IMM_ADDR32
       if(c)
-        emit_readdword_tlb(constmap[i][s]+offset,map,th,tl);
+        emit_readdword_tlb(constmap[i][safe_regmap_index(s)]+offset,map,th,tl);
       else
       #endif
       emit_readdword_indexed_tlb(0,addr,map,th,tl);
@@ -6598,10 +6603,10 @@ static void load_assemble(int i,struct regstat *i_regs)
   if(jaddr) {
     add_stub(type,jaddr,(intptr_t)out,i,addr,(intptr_t)i_regs,ccadj[i],reglist);
   } else if(c&&!memtarget) {
-    inline_readstub(type,i,constmap[i][s]+offset,addr,i_regs,rt1[i],ccadj[i],reglist);
+    inline_readstub(type,i,constmap[i][safe_regmap_index(s)]+offset,addr,i_regs,rt1[i],ccadj[i],reglist);
   }
 #else
-  inline_readstub(type,i,c?(constmap[i][s]+offset):0,addr,i_regs,rt1[i],ccadj[i],reglist);
+  inline_readstub(type,i,c?(constmap[i][safe_regmap_index(s)]+offset):0,addr,i_regs,rt1[i],ccadj[i],reglist);
 #endif
 }
 
@@ -6628,8 +6633,8 @@ static void store_assemble(int i,struct regstat *i_regs)
   offset=imm[i];
   if(s>=0) {
     c=(i_regs->wasconst>>s)&1;
-    memtarget=c&&((signed int)(constmap[i][s]+offset))<(signed int)0x80800000;
-    if(c&&using_tlb&&((signed int)(constmap[i][s]+offset))>=(signed int)0xC0000000) memtarget=1;
+    memtarget=c&&((signed int)(constmap[i][safe_regmap_index(s)]+offset))<(signed int)0x80800000;
+    if(c&&using_tlb&&((signed int)(constmap[i][safe_regmap_index(s)]+offset))>=(signed int)0xC0000000) memtarget=1;
   }
   assert(tl>=0);
   assert(temp>=0);
@@ -6688,21 +6693,21 @@ static void store_assemble(int i,struct regstat *i_regs)
     cache=get_reg(i_regs->regmap,MMREG);
     assert(map>=0);
     reglist&=~(1<<map);
-    map=do_tlb_w(addr,temp,map,cache,x,c,constmap[i][s]+offset);
-    do_tlb_w_branch(map,c,constmap[i][s]+offset,&jaddr);
+    map=do_tlb_w(addr,temp,map,cache,x,c,constmap[i][safe_regmap_index(s)]+offset);
+    do_tlb_w_branch(map,c,constmap[i][safe_regmap_index(s)]+offset,&jaddr);
   }
 
   if(!c||memtarget) {
     if (opcode[i]==0x28) { // SB
       int x=0;
       if(!c) emit_xorimm(addr,3,temp);
-      else x=((constmap[i][s]+offset)^3)-(constmap[i][s]+offset);
+      else x=((constmap[i][safe_regmap_index(s)]+offset)^3)-(constmap[i][safe_regmap_index(s)]+offset);
       emit_writebyte_indexed_tlb(tl,x,temp,map);
     }
     else if (opcode[i]==0x29) { // SH
       int x=0;
       if(!c) emit_xorimm(addr,2,temp);
-      else x=((constmap[i][s]+offset)^2)-(constmap[i][s]+offset);
+      else x=((constmap[i][safe_regmap_index(s)]+offset)^2)-(constmap[i][safe_regmap_index(s)]+offset);
       emit_writehword_indexed_tlb(tl,x,temp,map);
     }
     else if (opcode[i]==0x2B) { // SW
@@ -6743,10 +6748,10 @@ static void store_assemble(int i,struct regstat *i_regs)
   if(jaddr) {
     add_stub(type,jaddr,(intptr_t)out,i,real_addr,(intptr_t)i_regs,ccadj[i],reglist);
   } else if(c&&!memtarget) {
-    inline_writestub(type,i,constmap[i][s]+offset,real_addr,i_regs,rs2[i],ccadj[i],reglist);
+    inline_writestub(type,i,constmap[i][safe_regmap_index(s)]+offset,real_addr,i_regs,rs2[i],ccadj[i],reglist);
   }
 #else
-  inline_writestub(type,i,c?(constmap[i][s]+offset):0,real_addr,i_regs,rs2[i],ccadj[i],reglist);
+  inline_writestub(type,i,c?(constmap[i][safe_regmap_index(s)]+offset):0,real_addr,i_regs,rs2[i],ccadj[i],reglist);
 #endif
 }
 
@@ -6765,8 +6770,8 @@ static void storelr_assemble(int i,struct regstat *i_regs)
   offset=imm[i];
   if(s>=0) {
     c=(i_regs->isconst>>s)&1;
-    memtarget=c&&((signed int)(constmap[i][s]+offset))<(signed int)0x80800000;
-    if(c&&using_tlb&&((signed int)(constmap[i][s]+offset))>=(signed int)0xC0000000) memtarget=1;
+    memtarget=c&&((signed int)(constmap[i][safe_regmap_index(s)]+offset))<(signed int)0x80800000;
+    if(c&&using_tlb&&((signed int)(constmap[i][safe_regmap_index(s)]+offset))>=(signed int)0xC0000000) memtarget=1;
   }
   assert(tl>=0);
   assert(temp>=0);
@@ -6810,8 +6815,8 @@ static void storelr_assemble(int i,struct regstat *i_regs)
     int cache=get_reg(i_regs->regmap,MMREG);
     assert(map>=0);
     reglist&=~(1<<map);
-    map=do_tlb_w(addr,temp,map,cache,0,c,constmap[i][s]+offset);
-    do_tlb_w_branch(map,c,constmap[i][s]+offset,&jaddr);
+    map=do_tlb_w(addr,temp,map,cache,0,c,constmap[i][safe_regmap_index(s)]+offset);
+    do_tlb_w_branch(map,c,constmap[i][safe_regmap_index(s)]+offset,&jaddr);
   }
 
   if(!c||memtarget)
@@ -6832,7 +6837,7 @@ static void storelr_assemble(int i,struct regstat *i_regs)
       case1=(intptr_t)out;
       emit_jne(0);
     }
-    if(!c||((constmap[i][s]+offset)&3)==0) {
+    if(!c||((constmap[i][safe_regmap_index(s)]+offset)&3)==0) {
       if (opcode[i]==0x2A) { // SWL
         emit_writeword_indexed_tlb(tl,0,addr,map);
       }
@@ -6853,7 +6858,7 @@ static void storelr_assemble(int i,struct regstat *i_regs)
       emit_jmp(0);
       set_jump_target(case1,(intptr_t)out);
     }
-    if(!c||((constmap[i][s]+offset)&3)==1) {
+    if(!c||((constmap[i][safe_regmap_index(s)]+offset)&3)==1) {
       if (opcode[i]==0x2A) { // SWL
         // Write 3 msb into three least significant bytes
         if(rs2[i]) emit_rorimm(tl,8,tl);
@@ -6891,7 +6896,7 @@ static void storelr_assemble(int i,struct regstat *i_regs)
       emit_jne(0);
     }
 
-    if(!c||((constmap[i][s]+offset)&3)==2) {
+    if(!c||((constmap[i][safe_regmap_index(s)]+offset)&3)==2) {
       if (opcode[i]==0x2A) { // SWL
         // Write two msb into two least significant bytes
         if(rs2[i]) emit_rorimm(tl,16,tl);
@@ -6928,7 +6933,7 @@ static void storelr_assemble(int i,struct regstat *i_regs)
       set_jump_target(case3,(intptr_t)out);
     }
 
-    if(!c||((constmap[i][s]+offset)&3)==3) {
+    if(!c||((constmap[i][safe_regmap_index(s)]+offset)&3)==3) {
       if (opcode[i]==0x2A) { // SWL
         // Write msb into least significant byte
         if(rs2[i]) emit_rorimm(tl,24,tl);
@@ -6966,7 +6971,7 @@ static void storelr_assemble(int i,struct regstat *i_regs)
         done0=(intptr_t)out;
         emit_jne(0);
       }
-      if(!c||((constmap[i][s]+offset)&4)==0) {
+      if(!c||((constmap[i][safe_regmap_index(s)]+offset)&4)==0) {
         #if NEW_DYNAREC == NEW_DYNAREC_ARM64
         emit_andimm64(addr,~3,temp3);
         #else
@@ -6981,7 +6986,7 @@ static void storelr_assemble(int i,struct regstat *i_regs)
         done0=(intptr_t)out;
         emit_jeq(0);
       }
-      if(!c||((constmap[i][s]+offset)&4)!=0) {
+      if(!c||((constmap[i][safe_regmap_index(s)]+offset)&4)!=0) {
         #if NEW_DYNAREC == NEW_DYNAREC_ARM64
         emit_andimm64(addr,~3,temp3);
         #else
@@ -7024,10 +7029,10 @@ static void storelr_assemble(int i,struct regstat *i_regs)
   if(jaddr) {
     add_stub(type,jaddr,(intptr_t)out,i,real_addr,(intptr_t)i_regs,ccadj[i],reglist);
   } else if(c&&!memtarget) {
-    inline_writestub(type,i,constmap[i][s]+offset,real_addr,i_regs,rs2[i],ccadj[i],reglist);
+    inline_writestub(type,i,constmap[i][safe_regmap_index(s)]+offset,real_addr,i_regs,rs2[i],ccadj[i],reglist);
   }
 #else
-  inline_writestub(type,i,c?(constmap[i][s]+offset):0,real_addr,i_regs,rs2[i],ccadj[i],reglist);
+  inline_writestub(type,i,c?(constmap[i][safe_regmap_index(s)]+offset):0,real_addr,i_regs,rs2[i],ccadj[i],reglist);
 #endif
 }
 
@@ -7063,8 +7068,8 @@ static void c1ls_assemble(int i,struct regstat *i_regs)
 
   if(s>=0) {
     c=(i_regs->wasconst>>s)&1;
-    memtarget=c&&((signed int)(constmap[i][s]+offset))<(signed int)0x80800000;
-    if(c&&using_tlb&&((signed int)(constmap[i][s]+offset))>=(signed int)0xC0000000) memtarget=1;
+    memtarget=c&&((signed int)(constmap[i][safe_regmap_index(s)]+offset))<(signed int)0x80800000;
+    if(c&&using_tlb&&((signed int)(constmap[i][safe_regmap_index(s)]+offset))>=(signed int)0xC0000000) memtarget=1;
   }
   if(offset||s<0||c) addr=ar;
   else addr=s;
@@ -7129,19 +7134,19 @@ static void c1ls_assemble(int i,struct regstat *i_regs)
     assert(map>=0);
     reglist&=~(1<<map);
     if (opcode[i]==0x31||opcode[i]==0x35) { // LWC1/LDC1
-      map=do_tlb_r(addr,ar,map,cache,0,c,constmap[i][s]+offset);
-      do_tlb_r_branch(map,c,constmap[i][s]+offset,&jaddr2);
+      map=do_tlb_r(addr,ar,map,cache,0,c,constmap[i][safe_regmap_index(s)]+offset);
+      do_tlb_r_branch(map,c,constmap[i][safe_regmap_index(s)]+offset,&jaddr2);
     }
     else if (opcode[i]==0x39||opcode[i]==0x3D) { // SWC1/SDC1
-      map=do_tlb_w(addr,ar,map,cache,0,c,constmap[i][s]+offset);
-      do_tlb_w_branch(map,c,constmap[i][s]+offset,&jaddr2);
+      map=do_tlb_w(addr,ar,map,cache,0,c,constmap[i][safe_regmap_index(s)]+offset);
+      do_tlb_w_branch(map,c,constmap[i][safe_regmap_index(s)]+offset,&jaddr2);
     }
   }
 
   if(!c||memtarget) {
     if (opcode[i]==0x31) { // LWC1
       #ifdef HOST_IMM_ADDR32
-      if(c) emit_readword_tlb(constmap[i][s]+offset,map,tl);
+      if(c) emit_readword_tlb(constmap[i][safe_regmap_index(s)]+offset,map,tl);
       else
       #endif
       emit_readword_indexed_tlb(0,addr,map,tl);
@@ -7149,7 +7154,7 @@ static void c1ls_assemble(int i,struct regstat *i_regs)
     else if (opcode[i]==0x35) { // LDC1
       assert(th>=0);
       #ifdef HOST_IMM_ADDR32
-      if(c) emit_readdword_tlb(constmap[i][s]+offset,map,th,tl);
+      if(c) emit_readdword_tlb(constmap[i][safe_regmap_index(s)]+offset,map,th,tl);
       else
       #endif
       emit_readdword_indexed_tlb(0,addr,map,th,tl);
@@ -7188,15 +7193,15 @@ static void c1ls_assemble(int i,struct regstat *i_regs)
     add_stub(type,jaddr2,(intptr_t)out,i,real_addr,(intptr_t)i_regs,ccadj[i],reglist);
   } else if(c&&!memtarget) {
     if (opcode[i]==0x39||opcode[i]==0x3D) // SWC1/SDC1
-      inline_writestub(type,i,constmap[i][s]+offset,real_addr,i_regs,FTEMP,ccadj[i],reglist);
+      inline_writestub(type,i,constmap[i][safe_regmap_index(s)]+offset,real_addr,i_regs,FTEMP,ccadj[i],reglist);
     else // LWC1/LDC1
-      inline_readstub(type,i,constmap[i][s]+offset,real_addr,i_regs,FTEMP,ccadj[i],reglist);
+      inline_readstub(type,i,constmap[i][safe_regmap_index(s)]+offset,real_addr,i_regs,FTEMP,ccadj[i],reglist);
   }
 #else
   if (opcode[i]==0x39||opcode[i]==0x3D) // SWC1/SDC1
-    inline_writestub(type,i,c?(constmap[i][s]+offset):0,real_addr,i_regs,FTEMP,ccadj[i],reglist);
+    inline_writestub(type,i,c?(constmap[i][safe_regmap_index(s)]+offset):0,real_addr,i_regs,FTEMP,ccadj[i],reglist);
   else // LWC1/LDC1
-    inline_readstub(type,i,c?(constmap[i][s]+offset):0,real_addr,i_regs,FTEMP,ccadj[i],reglist);
+    inline_readstub(type,i,c?(constmap[i][safe_regmap_index(s)]+offset):0,real_addr,i_regs,FTEMP,ccadj[i],reglist);
 #endif
 
   if (opcode[i]==0x31) { // LWC1 (write float)
@@ -10024,11 +10029,11 @@ int new_recompile_block(int addr)
       ds=0; // Skip delay slot, already allocated as part of branch
       // ...but we need to alloc it in case something jumps here
       if(i+1<slen) {
-        current.u=branch_unneeded_reg[i-1]&unneeded_reg[i+1];
-        current.uu=branch_unneeded_reg_upper[i-1]&unneeded_reg_upper[i+1];
+        current.u=branch_unneeded_reg[(i > 0) ? i-1 : 0]&unneeded_reg[i+1];
+        current.uu=branch_unneeded_reg_upper[(i > 0) ? i-1 : 0]&unneeded_reg_upper[i+1];
       }else{
-        current.u=branch_unneeded_reg[i-1];
-        current.uu=branch_unneeded_reg_upper[i-1];
+        current.u=branch_unneeded_reg[(i > 0) ? i-1 : 0];
+        current.uu=branch_unneeded_reg_upper[(i > 0) ? i-1 : 0];
       }
       current.u&=~((1LL<<rs1[i])|(1LL<<rs2[i]));
       current.uu&=~((1LL<<us1[i])|(1LL<<us2[i]));
