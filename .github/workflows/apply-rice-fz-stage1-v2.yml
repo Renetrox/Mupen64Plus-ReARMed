@@ -18,7 +18,7 @@ jobs:
         with:
           ref: rice-fz-audit-stage1
           fetch-depth: 0
-      - name: Apply patch
+      - name: Apply Rice compatibility restoration
         run: python3 .github/apply_rice_fz_stage1.py
       - name: Validate source diff
         shell: bash
