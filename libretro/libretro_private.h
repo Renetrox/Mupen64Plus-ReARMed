@@ -13,6 +13,7 @@ extern "C" {
 
 extern unsigned int FAKE_SDL_TICKS;
 
+extern retro_environment_t environ_cb;
 extern retro_get_cpu_features_t perf_get_cpu_features_cb;
 extern retro_perf_get_counter_t perf_get_counter_cb;
 extern retro_log_printf_t log_cb;
