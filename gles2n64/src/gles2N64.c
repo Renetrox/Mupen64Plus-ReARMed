@@ -36,8 +36,7 @@ void        (*renderCallback)() = NULL;
  *   and do NOT raise MI_INTR_SP here. Current rsp_core consumes DP at task end
  *   and schedules it with normal deferred timing, while rsp-hle already owns
  *   the SP task-done interrupt path. */
-#define GLN64_FRAMESKIP_AUTO     (-1)
-#define GLN64_FRAMESKIP_AUTO_MAX 2
+#define GLN64_FRAMESKIP_AUTO_MIN (-5)
 
 typedef struct
 {
@@ -70,19 +69,18 @@ static void gln64_frameskip_sync_mode(void)
 {
    int mode = parallel_n64_get_gles2n64_frameskip_mode();
 
-   if (mode < GLN64_FRAMESKIP_AUTO)
-      mode = GLN64_FRAMESKIP_AUTO;
-   if (mode > 5)
-      mode = 5;
+   if (mode < GLN64_FRAMESKIP_AUTO_MIN)
+    mode = GLN64_FRAMESKIP_AUTO_MIN;
+ if (mode > 5)
+    mode = 5;
 
-   if (gln64_frame_skipper.mode != mode)
-   {
-      gln64_frame_skipper.mode = mode;
-      gln64_frame_skipper.max_skips =
-         (mode == GLN64_FRAMESKIP_AUTO) ? GLN64_FRAMESKIP_AUTO_MAX :
-         ((mode > 0) ? mode : 0);
-      gln64_frameskip_start();
-   }
+ if (gln64_frame_skipper.mode != mode)
+ {
+    gln64_frame_skipper.mode = mode;
+    gln64_frame_skipper.max_skips =
+       (mode < 0) ? -mode : ((mode > 0) ? mode : 0);
+    gln64_frameskip_start();
+ }
 }
 
 static int gln64_frameskip_will_skip_next(void)
@@ -196,6 +194,7 @@ int gln64InitiateGFX (GFX_INFO Gfx_Info)
 {
     Config_gln64_LoadConfig();
     Config_gln64_LoadRomConfig(Gfx_Info.HEADER);
+    Config_gln64_ApplyCoreOptions();
 
     OGL_Start();
 
@@ -205,6 +204,11 @@ int gln64InitiateGFX (GFX_INFO Gfx_Info)
 void gln64ProcessDList(void)
 {
     OGL.frame_dl++;
+
+    /* FZ clears the new back buffer immediately after a real swap.
+     * libretro has no plugin-owned swap here, so perform that clear
+     * when the next graphics display list begins. */
+    OGL_ApplyPendingBufferClear();
 
     if (gln64_frameskip_will_skip_next())
     {

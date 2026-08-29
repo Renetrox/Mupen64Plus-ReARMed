@@ -1,0 +1,32 @@
+name: Validate FZ core safety fixes
+
+on:
+  push:
+    branches:
+      - frameskip-modern
+    paths:
+      - .github/workflows/apply-fz-core-fixes.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out frameskip-modern
+        uses: actions/checkout@v4
+        with:
+          ref: frameskip-modern
+
+      - name: Install build headers
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev
+
+      - name: Build libretro core
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -j2

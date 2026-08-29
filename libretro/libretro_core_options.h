@@ -44,7 +44,7 @@ static struct retro_core_option_v2_category m64p_rearmed_option_cats[] = {
    {
       M64P_REARMED_SYSTEM_CATEGORY_KEY,
       "System Timing",
-      "Ajustes avanzados de timing del núcleo. Auto conserva los valores específicos de cada juego."
+      "Advanced core timing controls. Auto preserves the game-specific defaults."
    },
    {
       M64P_REARMED_RICE_CATEGORY_KEY,

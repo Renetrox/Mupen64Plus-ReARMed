@@ -254,9 +254,9 @@ static void force_uniforms(void)
    SC_ForceUniform1f(uK4, gDP.convert.k4);
    SC_ForceUniform1f(uK5, gDP.convert.k5);
    SC_ForceUniform4fv(uFogColor, &gDP.fogColor.r);
-   SC_ForceUniform1i(uEnableFog, ((gSP.geometryMode & G_FOG)));
+   SC_ForceUniform1i(uEnableFog, (config.enableFog && (gSP.geometryMode & G_FOG)));
    SC_ForceUniform1f(uRenderState, (float) OGL.renderState);
-   SC_ForceUniform1f(uFogScale, (float) gSP.fog.multiplier / 256.0f);
+   SC_ForceUniform1f(uFogScale, (float) gSP.fog.multiplier / 255.0f);
    SC_ForceUniform1f(uFogOffset, (float) gSP.fog.offset / 255.0f);
    SC_ForceUniform1f(uAlphaRef, (gDP.otherMode.cvgXAlpha) ? 0.5f : gDP.blendColor.a);
    SC_ForceUniform2f(uTexScale, gSP.texture.scales, gSP.texture.scalet);

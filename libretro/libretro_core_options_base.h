@@ -94,20 +94,81 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "disabled"
     },
     {
-        CORE_NAME "-gles2n64-frameskip",
-        "gles2n64 Frame Skip",
-        "Frame Skip",
-        "Native Mupen64Plus FZ-style frameskip inside the legacy gles2n64 renderer. Auto skips only when behind; numeric values render one graphics frame and then skip the selected number of graphics frames. This native mode takes precedence over the global Frame Skip while gles2n64 is active.",
+    CORE_NAME "-gles2n64-frameskip",
+    "gles2n64 Frame Skip",
+    "Frame Skip",
+    "Native Mupen64Plus FZ frameskip. Negative values use automatic catch-up with the selected maximum consecutive skips; positive values skip exactly that many graphics frames after each rendered frame. This renderer-specific mode takes precedence over the global Frame Skip option.",
+    NULL,
+    "gles2n64",
+    {
+        {"0",  "Never skip frames"},
+        {"-1", "No more than 1 frame"},
+        {"-2", "No more than 2 frames"},
+        {"-3", "No more than 3 frames"},
+        {"-4", "No more than 4 frames"},
+        {"-5", "No more than 5 frames"},
+        {"1",  "Exactly 1 frame"},
+        {"2",  "Exactly 2 frames"},
+        {"3",  "Exactly 3 frames"},
+        {"4",  "Exactly 4 frames"},
+        {"5",  "Exactly 5 frames"},
+        {NULL,NULL},
+    },
+    "0"
+},
+
+{
+        CORE_NAME "-gln64-fog",
+        "gles2n64: Fog",
+        "Fog",
+        "Enable N64 fog in the legacy gles2n64/glN64 renderer. Mupen64Plus FZ defaults this renderer option to Off. Restart content after changing for deterministic shader state.",
         NULL,
         "gles2n64",
         {
             {"disabled", "Disabled"},
-            {"auto", "Auto"},
-            {"1", "1"},
-            {"2", "2"},
-            {"3", "3"},
-            {"4", "4"},
-            {"5", "5"},
+            {"enabled", "Enabled"},
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+{
+        CORE_NAME "-gln64-alpha-test",
+        "gles2n64: Alpha Test",
+        "Alpha Test",
+        "Enable glN64 alpha testing using the same threshold/cvgXAlpha decision used by Mupen64Plus FZ. Disabling can improve speed but may break transparency.",
+        NULL,
+        "gles2n64",
+        {
+            {"enabled", "Enabled"},
+            {"disabled", "Disabled"},
+            { NULL, NULL },
+        },
+        "enabled"
+    },
+{
+        CORE_NAME "-gln64-screen-clear",
+        "gles2n64: Force Screen Clear",
+        "Force Screen Clear",
+        "FZ-style post-swap color/depth clear adapted for libretro. Because retro_return() only latches a frame, the clear is deferred until the next display list so the frame is not erased before RetroArch presents it. Restart content after changing.",
+        NULL,
+        "gles2n64",
+        {
+            {"disabled", "Disabled"},
+            {"enabled", "Enabled"},
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+{
+        CORE_NAME "-gln64-z-hack",
+        "gles2n64: Z Hack",
+        "Z Hack",
+        "Enable the legacy glN64 depth transform used by Mupen64Plus FZ. Intended only for games that need it; changing it requires restarting content because the vertex shader is compiled at renderer startup.",
+        NULL,
+        "gles2n64",
+        {
+            {"disabled", "Disabled"},
+            {"enabled", "Enabled"},
             { NULL, NULL },
         },
         "disabled"
@@ -738,7 +799,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-fog",
         "Glide64: Fog",
         "Fog",
-        "Controla la emulación de niebla del N64. Desactivarla puede reducir ligeramente la carga gráfica, pero elimina efectos de profundidad y atmósfera y puede dejar escenas incorrectas. Game default conserva el perfil específico del juego. Reinicie el contenido después de cambiar esta opción.",
+        "Enable or disable N64 fog emulation. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -754,7 +815,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-buff-clear",
         "Glide64: Buffer Clear",
         "Buffer Clear",
-        "Controla el borrado de los buffers usados por Glide64 entre renderizados. Activarlo puede corregir restos de cuadros, estelas o contenido antiguo, con un pequeño costo de rendimiento; desactivarlo puede ser necesario en juegos cuyo perfil evita el borrado. Game default conserva ese perfil. Reinicie el contenido después de cambiar esta opción.",
+        "Clear the rendering buffer every frame. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -770,7 +831,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-swapmode",
         "Glide64: Buffer Swap Mode",
         "Buffer Swap Mode",
-        "Define cuándo Glide64 intercambia el buffer presentado. Cambiar el momento del swap puede corregir parpadeos o cuadros faltantes, pero un modo inadecuado puede producir imagen inestable, presentación duplicada o errores de sincronización. Game default usa el modo elegido para cada juego. Reinicie el contenido después de cambiar esta opción.",
+        "Select when Glide64 swaps buffers: at VI, conditionally, or a mix of both methods. Conditional modes can prevent flicker in some games. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -787,7 +848,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-lodmode",
         "Glide64: LOD Mode",
         "LOD Mode",
-        "Controla el cálculo de Level of Detail (LOD) de texturas. Disabled evita el cálculo, Fast usa una aproximación menos costosa y Precise prioriza exactitud. Un valor incorrecto puede seleccionar texturas o mipmaps equivocados; los modos más precisos pueden aumentar la carga gráfica. Reinicie el contenido después de cambiar esta opción.",
+        "Select texture LOD calculation: Disabled, Fast, or Precise. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -804,7 +865,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-fb-smart",
         "Glide64: Smart Framebuffer",
         "Smart Framebuffer",
-        "Activa la emulación inteligente del framebuffer de Glide64. Es necesaria para juegos que renderizan efectos, menús o imágenes intermedias en memoria, pero aumenta el trabajo de copia y detección. Desactivarla puede mejorar rendimiento y también romper esos efectos. Game default conserva la decisión por juego. Reinicie el contenido después de cambiar esta opción.",
+        "Enable Smart Framebuffer emulation for games that render intermediate images or effects through the N64 framebuffer. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -820,7 +881,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-fb-render",
         "Glide64: Framebuffer Render",
         "Framebuffer Render",
-        "Controla el renderizado por software del depth buffer dentro de la emulación de framebuffer. Puede ser necesario para efectos que dependen de información de profundidad almacenada en RDRAM, pero es una ruta costosa. Desactivarlo mejora rendimiento cuando el juego no lo necesita y puede causar errores de profundidad si se fuerza incorrectamente. Reinicie el contenido después de cambiar esta opción.",
+        "Enable software depth rendering for framebuffer effects that need N64 depth data. This can be expensive. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -836,7 +897,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-fb-crc-mode",
         "Glide64: Framebuffer CRC Mode",
         "Framebuffer CRC Mode",
-        "Define cómo Glide64 usa CRC para detectar cambios en framebuffers. Fast reduce comprobaciones, Safe prioriza una detección más fiable y Disabled evita el control. Modos más estrictos pueden costar rendimiento; modos más ligeros pueden no detectar una actualización y mostrar contenido antiguo. Reinicie el contenido después de cambiar esta opción.",
+        "Select framebuffer CRC checking: Disabled, Fast, or Safe. Stricter checking improves change detection at a performance cost. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -853,7 +914,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-read-back-to-screen",
         "Glide64: Read Back to Screen",
         "Read Back to Screen",
-        "Controla las rutas legacy que vuelven a presentar en pantalla una imagen almacenada en el framebuffer del N64. Algunos juegos dibujan o procesan imágenes en RDRAM y necesitan esta lectura. Activarla incrementa copias de memoria; un modo incorrecto puede causar pantallas faltantes, imágenes duplicadas o pérdida de rendimiento. Reinicie el contenido después de cambiar esta opción.",
+        "Render an N64 framebuffer back to the screen as a texture. Some games require this for framebuffer-based images and effects. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -870,7 +931,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-detect-cpu-write",
         "Glide64: Detect CPU Write",
         "Detect CPU Write",
-        "Detecta escrituras realizadas por la CPU directamente sobre el framebuffer para que Glide64 pueda mostrar imágenes que no fueron dibujadas por el RDP. Es necesaria en ciertos juegos y añade trabajo de seguimiento/copia; desactivarla puede ocultar vídeos, menús o efectos escritos por CPU. Reinicie el contenido después de cambiar esta opción.",
+        "Show framebuffer images written directly by the CPU. Disabling this can hide CPU-drawn videos, menus, or effects. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -886,7 +947,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-alt-tex-size",
         "Glide64: Alternate Texture Size",
         "Alternate Texture Size",
-        "Usa el cálculo alternativo legacy del tamaño de textura. Es un hack de compatibilidad para juegos con tamaños o cargas de textura que el cálculo normal interpreta mal. Forzarlo sin necesidad puede producir texturas deformadas, desplazadas o con tamaño incorrecto. Reinicie el contenido después de cambiar esta opción.",
+        "Use the alternate legacy texture-size calculation. This is a compatibility workaround for games whose texture sizes are interpreted incorrectly. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -902,7 +963,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-force-microcheck",
         "Glide64: Force Microcode Check",
         "Force Microcode Check",
-        "Fuerza a Glide64 a volver a comprobar el microcódigo gráfico durante la ejecución. Está pensado para juegos que mezclan microcódigos, como F3DEX y S2DEX. Añade una pequeña sobrecarga, pero desactivarlo en un juego que cambia de microcódigo puede provocar geometría o sprites incorrectos. Reinicie el contenido después de cambiar esta opción.",
+        "Check the graphics microcode each frame. Useful for games that switch between microcodes. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -918,7 +979,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-force-quad3d",
         "Glide64: Force Quad3D",
         "Force Quad3D",
-        "Fuerza a interpretar el comando gráfico 0xB5 como Quad3D en lugar de Line3D. Es un hack específico para microcódigos/juegos que usan esa codificación. Activarlo en un título que no lo necesita puede convertir líneas o polígonos en geometría incorrecta. Reinicie el contenido después de cambiar esta opción.",
+        "Force command 0xB5 to be interpreted as Quad3D instead of Line3D. Use only for games or microcodes that require it. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -934,7 +995,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-optimize-texrect",
         "Glide64: Optimize Texrect",
         "Optimize Texrect",
-        "Activa la ruta rápida para rectángulos texturizados cuando interviene la emulación de framebuffer. Puede reducir carga en elementos 2D, pero algunos juegos necesitan la ruta completa para efectos que leen o reutilizan el framebuffer. Desactivarlo puede mejorar compatibilidad a costa de rendimiento. Reinicie el contenido después de cambiar esta opción.",
+        "Use fast texture-rectangle rendering with hardware framebuffer emulation. This can improve performance but some framebuffer effects need the full path. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -950,7 +1011,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-fb-read-alpha",
         "Glide64: Framebuffer Read Alpha",
         "Framebuffer Read Alpha",
-        "Incluye el canal alfa al leer el framebuffer. Es necesario para ciertos efectos de transparencia y composición, pero aumenta el trabajo de lectura/copia. Desactivarlo puede mejorar rendimiento y también producir transparencias, máscaras o capas incorrectas. Reinicie el contenido después de cambiar esta opción.",
+        "Read the alpha channel from the framebuffer. Required by some transparency and compositing effects. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -966,7 +1027,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-force-calc-sphere",
         "Glide64: Force Calc Sphere",
         "Force Calc Sphere",
-        "Fuerza el cálculo de mapeado esférico de texturas. Es un workaround legacy destinado principalmente a juegos que dependen de ese cálculo, como Ridge Racer 64. Forzarlo en otros títulos puede alterar reflejos o coordenadas de textura. Reinicie el contenido después de cambiar esta opción.",
+        "Force spherical texture-coordinate mapping. This is a compatibility workaround for games that require the legacy spherical calculation. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -982,7 +1043,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-increase-texrect-edge",
         "Glide64: Increase Texrect Edge",
         "Increase Texrect Edge",
-        "Añade un píxel/coordenada al borde inferior derecho de los texture rectangles. Corrige líneas, huecos o bordes faltantes en juegos concretos; aplicado donde no corresponde puede crear solapamientos, bordes extra o pequeños errores de textura. Reinicie el contenido después de cambiar esta opción.",
+        "Force texture-rectangle size to an integral edge by extending the lower-right boundary. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -998,7 +1059,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-decrease-fillrect-edge",
         "Glide64: Decrease Fillrect Edge",
         "Decrease Fillrect Edge",
-        "Resta una unidad al borde inferior derecho de los fill rectangles. Corrige sobreextensión y artefactos de relleno en juegos específicos, pero puede dejar huecos o líneas sin cubrir si se fuerza en títulos que usan las coordenadas normales. Reinicie el contenido después de cambiar esta opción.",
+        "Reduce the lower-right fill-rectangle edge by one unit. This fixes overdraw in specific games. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1014,7 +1075,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-stipple-mode",
         "Glide64: Stipple Mode",
         "Stipple Mode",
-        "Selecciona cómo Glide64 emula transparencias basadas en stipple/dithering de alfa. Pattern usa el patrón configurado y Rotate varía el patrón para aproximar el efecto temporal. Un modo incorrecto puede cambiar transparencias, sombras o producir tramado visible. Reinicie el contenido después de cambiar esta opción.",
+        "Select the 3dfx-style dithered-alpha/stipple emulation mode. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1031,7 +1092,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-clip-zmin",
         "Glide64: Clip Zmin",
         "Clip Zmin",
-        "Activa el recorte contra el plano Z cercano. Puede corregir polígonos que atraviesan la cámara o geometría inválida en juegos concretos. Forzarlo sin necesidad puede recortar objetos demasiado pronto o hacer desaparecer partes de la escena. Reinicie el contenido después de cambiar esta opción.",
+        "Enable clipping against the near Z plane. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1047,7 +1108,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-adjust-aspect",
         "Glide64: Adjust Aspect",
         "Adjust Aspect",
-        "Permite que Glide64 ajuste la relación de aspecto usando las escalas VI del juego, especialmente en modos panorámicos o títulos con escalado inusual. Desactivarlo puede evitar correcciones no deseadas; forzarlo puede estirar o comprimir la imagen en juegos que esperan su perfil propio. Reinicie el contenido después de cambiar esta opción.",
+        "Adjust screen aspect using the game VI scales, including widescreen or unusual video modes. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1063,7 +1124,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-correct-viewport",
         "Glide64: Correct Viewport",
         "Correct Viewport",
-        "Aplica la corrección legacy de valores de viewport usada por determinados juegos. Puede arreglar geometría desplazada, recortada o escalada incorrectamente. Activarla en títulos que no la necesitan puede mover o deformar la escena. Reinicie el contenido después de cambiar esta opción.",
+        "Force a positive/corrected viewport for games that provide problematic viewport values. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1079,7 +1140,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-zmode-compare-less",
         "Glide64: Zmode Compare Less",
         "Zmode Compare Less",
-        "Fuerza la comparación de profundidad LESS para los Z modes 0 y 1. Es un workaround para errores de oclusión y orden de polígonos. Un ajuste incorrecto puede hacer que objetos aparezcan delante o detrás de donde corresponde o que desaparezcan superficies. Reinicie el contenido después de cambiar esta opción.",
+        "Use the stricter less-than depth comparison path. This can fix depth tests in games that require it. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1095,7 +1156,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-old-style-adither",
         "Glide64: Old Style Alpha Dither",
         "Old Style Alpha Dither",
-        "Aplica el método antiguo de alpha dithering incluso cuando el modo normal de dither no lo pediría. Es necesario para la apariencia/compatibilidad de algunos juegos, incluidos ciertos Castlevania. Puede introducir tramado o ruido visible cuando se fuerza innecesariamente. Reinicie el contenido después de cambiar esta opción.",
+        "Apply alpha dithering regardless of the normal alpha-dither mode. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1111,7 +1172,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-n64-z-scale",
         "Glide64: N64 Z Scale",
         "N64 Z Scale",
-        "Escala el valor Z de los vértices antes de escribirlo en el depth buffer siguiendo el comportamiento del N64. Puede corregir precisión y conflictos de profundidad en juegos sensibles. Forzarlo donde no corresponde puede generar z-fighting o cambios en la oclusión y activa la tabla Z necesaria para esa ruta. Reinicie el contenido después de cambiar esta opción.",
+        "Scale vertex Z values before writing to the depth buffer using the legacy N64 Z-scale behavior. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1127,7 +1188,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-pal230",
         "Glide64: PAL230",
         "PAL230",
-        "Usa la escala vertical especial de 230 líneas empleada por algunos juegos PAL. Corrige altura y encuadre cuando el título depende de ese comportamiento; activarla en otros juegos PAL puede comprimir, estirar o desplazar verticalmente la imagen. Reinicie el contenido después de cambiar esta opción.",
+        "Apply the special PAL video scale used by games that require the PAL230 workaround. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1143,7 +1204,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-ignore-aux-copy",
         "Glide64: Ignore Auxiliary Copy",
         "Ignore Auxiliary Copy",
-        "Evita copiar framebuffers auxiliares de menor tamaño durante la detección de framebuffer. Puede ahorrar trabajo y solucionar casos donde esas copias no deben tratarse como imágenes reutilizables, pero puede romper efectos que realmente dependen de un buffer auxiliar. Reinicie el contenido después de cambiar esta opción.",
+        "Do not copy auxiliary framebuffers. This can improve performance but may break games that use auxiliary buffers. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1159,7 +1220,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-useless-is-useless",
         "Glide64: Useless Is Useless",
         "Useless Is Useless",
-        "Hace que un framebuffer que Glide64 detectó como no utilizado permanezca descartado en lugar de promoverlo a buffer auxiliar. Puede evitar procesamiento innecesario y resolver perfiles concretos; si la detección se equivoca, forzarlo puede hacer desaparecer un efecto que sí necesitaba ese buffer. Reinicie el contenido después de cambiar esta opción.",
+        "Enable the legacy handling for unchanged framebuffers. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {
@@ -1175,7 +1236,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-glide64-fb-read-always",
         "Glide64: Framebuffer Read Always",
         "Framebuffer Read Always",
-        "Fuerza la lectura del framebuffer en cada cuadro en lugar de depender de la detección inteligente. Es una ruta de compatibilidad para juegos que reutilizan continuamente imágenes en RDRAM, pero puede ser costosa en hardware modesto. Desactivarla mejora rendimiento cuando no es necesaria y puede perder actualizaciones si el juego depende de ella. Reinicie el contenido después de cambiar esta opción.",
+        "Read the framebuffer every frame. This is slow, but is required by effects such as some Banjo-Kazooie and Donkey Kong 64 transitions. Game default keeps the per-ROM setting.",
         NULL,
         "glide64",
         {

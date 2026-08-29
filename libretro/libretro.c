@@ -266,10 +266,20 @@ static uint64_t retro_frameskip_vi_serial = 0;
 static uint64_t retro_frameskip_decision_vi = (uint64_t)-1;
 static int      retro_frameskip_skip_current_vi = 0;
 
-/* Native legacy-gles2n64 mode:
- *  0 = disabled, -1 = auto, 1..5 = manual.
+/* Native legacy-gles2n64 mode, matching Mupen64Plus FZ semantics:
+ *  0       = disabled
+ * -1..-5  = automatic catch-up, absolute value is max consecutive skips
+ *  1..5   = manual/exact skip count
  * Read by gles2n64 through libretro_private.h. */
 static int retro_gles2n64_frameskip_mode = 0;
+
+
+/* glN64 controls mirrored from Mupen64Plus FZ. They are copied into
+ * the renderer after both global and per-ROM legacy config are read. */
+int gln64_core_fog          = 0;
+int gln64_core_alpha_test   = 1;
+int gln64_core_screen_clear = 0;
+int gln64_core_z_hack       = 0;
 
 int parallel_n64_get_gles2n64_frameskip_mode(void)
 {
@@ -1683,14 +1693,27 @@ void update_variables(bool startup)
    {
       int mode = 0;
 
+      /* Backward compatibility with older ReARMed option strings. */
+
       if (!strcmp(var.value, "auto"))
-         mode = -1;
-      else if (strcmp(var.value, "disabled"))
+
+         mode = -2;
+
+      else if (!strcmp(var.value, "disabled"))
+
+         mode = 0;
+
+      else
+
          mode = atoi(var.value);
 
-      if (mode < -1)
-         mode = -1;
+
+      if (mode < -5)
+
+         mode = -5;
+
       if (mode > 5)
+
          mode = 5;
 
       retro_gles2n64_frameskip_mode = mode;
@@ -1724,6 +1747,27 @@ void update_variables(bool startup)
             SIDMADurationOverride = (int32_t)value;
       }
    }
+
+   /* FZ-aligned legacy glN64 controls. */
+   var.key = CORE_NAME "-gln64-fog";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      gln64_core_fog = !strcmp(var.value, "enabled");
+
+   var.key = CORE_NAME "-gln64-alpha-test";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      gln64_core_alpha_test = strcmp(var.value, "disabled") != 0;
+
+   var.key = CORE_NAME "-gln64-screen-clear";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      gln64_core_screen_clear = !strcmp(var.value, "enabled");
+
+   var.key = CORE_NAME "-gln64-z-hack";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      gln64_core_z_hack = !strcmp(var.value, "enabled");
 
    /* CPU core selection: pure interpreter (0), cached interpreter (1),
     * or dynamic recompiler (2+). next reads r4300_emumode at init_device;
