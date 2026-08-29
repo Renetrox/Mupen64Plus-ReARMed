@@ -1,0 +1,73 @@
+name: Finalize FZ-aligned gln64 options
+
+on:
+  push:
+    branches:
+      - frameskip-modern
+    paths:
+      - .github/workflows/finalize-gln64-fz-options.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: frameskip-modern
+          fetch-depth: 0
+      - name: Reset deferred clear across renderer lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('gles2n64/src/OpenGL.c')
+          s = p.read_text()
+          old_stop = '''void OGL_Stop(void)
+          {
+             LOG(LOG_MINIMAL, "Stopping OpenGL\\n");
+          
+             Combiner_Destroy();
+          '''
+          new_stop = '''void OGL_Stop(void)
+          {
+             LOG(LOG_MINIMAL, "Stopping OpenGL\\n");
+             gln64_force_clear_pending = false;
+          
+             Combiner_Destroy();
+          '''
+          if 'LOG(LOG_MINIMAL, "Stopping OpenGL\\n");\n   gln64_force_clear_pending = false;' not in s:
+              if old_stop not in s:
+                  raise SystemExit('OGL_Stop anchor not found')
+              s = s.replace(old_stop, new_stop, 1)
+          old_start = '''bool OGL_Start(void)
+          {
+             float f;
+             _initStates();
+          '''
+          new_start = '''bool OGL_Start(void)
+          {
+             float f;
+             gln64_force_clear_pending = false;
+             _initStates();
+          '''
+          if 'float f;\n   gln64_force_clear_pending = false;\n   _initStates();' not in s:
+              if old_start not in s:
+                  raise SystemExit('OGL_Start anchor not found')
+              s = s.replace(old_start, new_start, 1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- gles2n64/src/OpenGL.c
+      - name: Commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gles2n64/src/OpenGL.c
+          git commit -m "gln64: reset deferred FZ clear on lifecycle changes"
+          git push origin HEAD:frameskip-modern
