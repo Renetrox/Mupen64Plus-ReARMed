@@ -1,0 +1,42 @@
+name: Build integrated glN64 state
+
+on:
+  push:
+    branches: [gln64-fz-refresh-final]
+    paths: [.github/workflows/build-integrated-gln64-raw.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gln64-fz-refresh-final
+      - name: Verify integrated state
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Glide64 options: $(grep -c 'CORE_NAME \"-glide64-' libretro/libretro_core_options_base.h)"
+          echo "glN64 options: $(grep -c 'CORE_NAME \"-gln64-' libretro/libretro_core_options_base.h)"
+          grep -Fq 'Enable or disable N64 fog emulation' libretro/libretro_core_options_base.h
+          grep -Fq 'Read the framebuffer every frame. This is slow' libretro/libretro_core_options_base.h
+          grep -Fq 'No more than 5 frames' libretro/libretro_core_options_base.h
+          grep -Fq 'Advanced core timing controls' libretro/libretro_core_options.h
+          grep -Fq 'parallel-n64-count-per-op' libretro/libretro.c
+          grep -Fq 'CORE_NAME "-gln64-screen-clear"' libretro/libretro.c
+          grep -Fq 'GLN64_FRAMESKIP_AUTO_MIN (-5)' gles2n64/src/gles2N64.c
+          git diff --check
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential pkg-config libgl-dev libgl1-mesa-dev libegl-dev libegl1-mesa-dev libgles2-mesa-dev
+      - name: Compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          make clean
+          make -j2
