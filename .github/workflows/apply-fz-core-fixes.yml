@@ -1,0 +1,142 @@
+name: Apply selected FZ core safety fixes
+
+on:
+  push:
+    branches:
+      - frameskip-modern
+    paths:
+      - .github/workflows/apply-fz-core-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fixes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out frameskip-modern
+        uses: actions/checkout@v4
+        with:
+          ref: frameskip-modern
+          fetch-depth: 0
+
+      - name: Apply FZ-derived core safety fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # 1) RDRAM: validate the probed module before touching dram[].
+          rdram_path = Path('mupen64plus-core/src/device/rdram/rdram.c')
+          rdram = rdram_path.read_text()
+          old_rdram = '''static void read_rdram_dram_corrupted(void* opaque, uint32_t address, uint32_t* value)
+          {
+              struct rdram* rdram = (struct rdram*)opaque;
+              uint32_t addr = rdram_dram_address(address);
+              size_t module;
+
+              *value = rdram->dram[addr];
+
+              module = get_module(rdram, address);
+              if (module == RDRAM_MAX_MODULES_COUNT) {
+                  *value = 0;
+                  return;
+              }
+
+              /* corrupt read value if CC value is not calibrated */
+              uint32_t mode = rdram->regs[module][RDRAM_MODE_REG] ^ UINT32_C(0xc0c0c0c0);
+              if ((mode & 0x80000000) && (cc_value(mode) == 0)) {
+                  *value = 0;
+              }
+          }
+          '''
+          new_rdram = '''static void read_rdram_dram_corrupted(void* opaque, uint32_t address, uint32_t* value)
+          {
+              struct rdram* rdram = (struct rdram*)opaque;
+              size_t module;
+
+              module = get_module(rdram, address);
+              if (module == RDRAM_MAX_MODULES_COUNT) {
+                  *value = 0;
+                  return;
+              }
+
+              /* corrupt read value if CC value is not calibrated */
+              uint32_t mode = rdram->regs[module][RDRAM_MODE_REG] ^ UINT32_C(0xc0c0c0c0);
+              if ((mode & 0x80000000) && (cc_value(mode) == 0)) {
+                  *value = 0;
+                  return;
+              }
+
+              uint32_t addr = rdram_dram_address(address);
+              *value = rdram->dram[addr];
+          }
+          '''
+          if old_rdram not in rdram:
+              raise SystemExit('RDRAM source no longer matches expected pre-fix block')
+          rdram = rdram.replace(old_rdram, new_rdram, 1)
+          rdram_path.write_text(rdram)
+
+          # 2) Ari64: FZ guarded constmap accesses when get_reg() can return -1.
+          dyna_path = Path('mupen64plus-core/src/device/r4300/new_dynarec/new_dynarec.c')
+          dyna = dyna_path.read_text()
+
+          helper_marker = 'static signed char get_reg(signed char regmap[],int r)\n'
+          if 'safe_regmap_index' in dyna:
+              raise SystemExit('safe_regmap_index already exists; refusing to duplicate it')
+          if helper_marker not in dyna:
+              raise SystemExit('Could not locate get_reg() insertion point')
+          helper = '''static inline int safe_regmap_index(int index)
+          {
+            return index < 0 ? 0 : index;
+          }
+
+          '''
+          dyna = dyna.replace(helper_marker, helper + helper_marker, 1)
+
+          unsafe_constmap = 'constmap[i][s]'
+          unsafe_count = dyna.count(unsafe_constmap)
+          if unsafe_count == 0:
+              raise SystemExit('No constmap[i][s] accesses found; source layout changed')
+          dyna = dyna.replace(unsafe_constmap, 'constmap[i][safe_regmap_index(s)]')
+
+          # 3) Ari64: protect i-1 in the delay-slot allocation path (Indiana Jones fix).
+          old_ds = '''      if(i+1<slen) {
+                current.u=branch_unneeded_reg[i-1]&unneeded_reg[i+1];
+                current.uu=branch_unneeded_reg_upper[i-1]&unneeded_reg_upper[i+1];
+              }else{
+                current.u=branch_unneeded_reg[i-1];
+                current.uu=branch_unneeded_reg_upper[i-1];
+              }
+          '''
+          new_ds = '''      if(i+1<slen) {
+                current.u=branch_unneeded_reg[(i > 0) ? i-1 : 0]&unneeded_reg[i+1];
+                current.uu=branch_unneeded_reg_upper[(i > 0) ? i-1 : 0]&unneeded_reg_upper[i+1];
+              }else{
+                current.u=branch_unneeded_reg[(i > 0) ? i-1 : 0];
+                current.uu=branch_unneeded_reg_upper[(i > 0) ? i-1 : 0];
+              }
+          '''
+          if old_ds not in dyna:
+              raise SystemExit('Indiana Jones delay-slot block no longer matches expected source')
+          dyna = dyna.replace(old_ds, new_ds, 1)
+          dyna_path.write_text(dyna)
+
+          print(f'Protected {unsafe_count} constmap[i][s] accesses')
+          PY
+
+          git diff --check
+          git diff -- mupen64plus-core/src/device/rdram/rdram.c \
+                     mupen64plus-core/src/device/r4300/new_dynarec/new_dynarec.c
+
+      - name: Commit fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mupen64plus-core/src/device/rdram/rdram.c \
+                  mupen64plus-core/src/device/r4300/new_dynarec/new_dynarec.c
+          git commit -m "core: backport selected M64Plus FZ safety fixes"
+          git push origin HEAD:frameskip-modern
