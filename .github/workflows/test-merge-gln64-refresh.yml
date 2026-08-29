@@ -18,7 +18,7 @@ jobs:
         with:
           ref: gln64-fz-refresh-v2
           fetch-depth: 0
-      - name: Test merge with current principal branch
+      - name: Inspect merge with current principal branch
         shell: bash
         run: |
           set +e
@@ -31,4 +31,8 @@ jobs:
           git status --short
           echo "--- conflicts ---"
           git diff --name-only --diff-filter=U
+          for f in $(git diff --name-only --diff-filter=U); do
+            echo "===== $f ====="
+            grep -n -B35 -A55 '^<<<<<<<' "$f" || true
+          done
           exit $rc
