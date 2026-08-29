@@ -123,6 +123,7 @@ uint32_t OGL_GetHeightOffset(void)
 void OGL_Stop(void)
 {
    LOG(LOG_MINIMAL, "Stopping OpenGL\n");
+   gln64_force_clear_pending = false;
 
    Combiner_Destroy();
    TextureCache_Destroy();
@@ -1206,6 +1207,7 @@ void _setSpecialTexrect(void)
 bool OGL_Start(void)
 {
    float f;
+   gln64_force_clear_pending = false;
    _initStates();
 	_setSpecialTexrect();
 
