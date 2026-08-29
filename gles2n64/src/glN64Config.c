@@ -72,6 +72,7 @@ static Option configOptions[] =
    {"", NULL, 0},
 
    {"#Texture Settings:", NULL, 0},
+   {"texture 2xSAI", &config.texture.sai2x, 0},
    {"texture max anisotropy", &config.texture.maxAnisotropy, 0},
    {"texture use IA", &config.texture.useIA, 0},
    {"texture fast CRC", &config.texture.fastCRC, 1},
@@ -98,10 +99,23 @@ extern int gln64_core_z_hack;
 
 void Config_gln64_ApplyCoreOptions(void)
 {
+   struct retro_variable var;
+
    config.enableFog        = gln64_core_fog;
    config.enableAlphaTest  = gln64_core_alpha_test;
    config.forceBufferClear = gln64_core_screen_clear;
    config.zHack            = gln64_core_z_hack;
+
+   /* FZ exposes 2xSAI as a texture option. Keep the legacy config-file value
+    * available for standalone-style use, but let the libretro Core Option
+    * override it when RetroArch supplies one. This option is startup-only:
+    * changing the scaler requires recreating the texture cache. */
+   var.key = "parallel-n64-gln64-2xsai";
+   var.value = NULL;
+   if (environ_cb &&
+       environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) &&
+       var.value)
+      config.texture.sai2x = !strcmp(var.value, "enabled");
 }
 
 static void Config_WriteConfig(const char *filename)

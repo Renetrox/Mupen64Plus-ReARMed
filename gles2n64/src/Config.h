@@ -43,6 +43,7 @@ typedef struct
         int maxAnisotropy;
         float maxAnisotropyF;
         int enableMipmap;
+        int sai2x;
         uint32_t bilinearMode;
         int useIA;
         int fastCRC;

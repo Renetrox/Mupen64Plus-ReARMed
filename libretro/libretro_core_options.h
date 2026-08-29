@@ -35,6 +35,25 @@
 static bool m64p_rearmed_options_prepared = false;
 static struct retro_core_option_v2_definition *m64p_rearmed_option_defs = NULL;
 
+/* glN64 in Mupen64Plus FZ exposes Texture 2xSAI, but the inherited libretro
+ * option table never did. Keep this fork-specific definition in the wrapper
+ * so the upstream-derived base table remains untouched. */
+static const struct retro_core_option_v2_definition m64p_rearmed_gln64_2xsai_option =
+{
+   CORE_NAME "-gln64-2xsai",
+   "gles2n64: Texture 2xSAI",
+   "Texture 2xSAI",
+   "Apply the legacy Mupen64Plus FZ 2xSAI scaler to glN64 textures before upload. This doubles texture width and height and increases texture-cache memory use. Restart content after changing.",
+   NULL,
+   "gles2n64",
+   {
+      { "disabled", "Disabled" },
+      { "enabled",  "Enabled" },
+      { NULL, NULL },
+   },
+   "disabled"
+};
+
 static struct retro_core_option_v2_category m64p_rearmed_option_cats[] = {
    {
       M64P_REARMED_PLUGIN_CATEGORY_KEY,
@@ -278,9 +297,10 @@ static void m64p_rearmed_prepare_plugin_options(void)
 
    base_count = m64p_rearmed_count_base_options();
 
+   /* One extra slot for the synthetic FZ 2xSAI option, plus the terminator. */
    m64p_rearmed_option_defs =
          (struct retro_core_option_v2_definition *)calloc(
-               base_count + 1, sizeof(struct retro_core_option_v2_definition));
+               base_count + 2, sizeof(struct retro_core_option_v2_definition));
 
    if (!m64p_rearmed_option_defs)
    {
@@ -320,6 +340,8 @@ static void m64p_rearmed_prepare_plugin_options(void)
    /* Real renderer categories, kept consecutive and in ReARMed's chosen order. */
    m64p_rearmed_append_category_options(&write_index, "glide64");
    m64p_rearmed_append_category_options(&write_index, "gles2n64");
+   m64p_rearmed_append_copy(&write_index, &m64p_rearmed_gln64_2xsai_option,
+         "gles2n64");
    m64p_rearmed_append_category_options(&write_index, "gliden64");
    m64p_rearmed_append_category_options(&write_index, "angrylion");
    m64p_rearmed_append_category_options(&write_index, "parallel");
