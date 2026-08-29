@@ -1,0 +1,189 @@
+name: Build refreshed glN64 branch v2
+
+on:
+  push:
+    branches: [gln64-fz-refresh-final]
+    paths: [.github/workflows/build-gln64-fz-refresh-final-v2.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gln64-fz-refresh-final
+          fetch-depth: 0
+      - name: Integrate final Glide64 base with current glN64
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin frameskip-modern
+          set +e
+          git merge --no-commit --no-ff origin/frameskip-modern
+          rc=$?
+          set -e
+          conflicts="$(git diff --name-only --diff-filter=U | sort)"
+          expected=$'libretro/libretro.c\nlibretro/libretro_core_options.h'
+          if [ "$rc" -ne 0 ] && [ "$conflicts" != "$expected" ]; then
+            echo "Unexpected conflicts:"; printf '%s\n' "$conflicts"; exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+
+          def resolve_keep_both(path):
+              s = Path(path).read_text()
+              while '<<<<<<< HEAD' in s:
+                  a=s.index('<<<<<<< HEAD'); b=s.index('=======',a); c=s.index('>>>>>>>',b); e=s.index('\n',c)
+                  ours=s[a+len('<<<<<<< HEAD'):b].strip('\n')
+                  theirs=s[b+len('======='):c].strip('\n')
+                  s=s[:a]+ours+'\n\n'+theirs+s[e:]
+              Path(path).write_text(s)
+          resolve_keep_both('libretro/libretro.c')
+          subprocess.run(['git','checkout','--ours','libretro/libretro_core_options.h'],check=True)
+
+          def object_range(text,key):
+              pos=text.index(f'CORE_NAME "{key}"')
+              start=text.rfind('\n    {',0,pos)+1
+              if start<=0: raise RuntimeError(f'No object start: {key}')
+              depth=0; ins=False; esc=False
+              for i in range(start,len(text)):
+                  ch=text[i]
+                  if ins:
+                      if esc: esc=False
+                      elif ch=='\\': esc=True
+                      elif ch=='"': ins=False
+                      continue
+                  if ch=='"': ins=True
+                  elif ch=='{': depth+=1
+                  elif ch=='}':
+                      depth-=1
+                      if depth==0:
+                          end=i+1
+                          if end<len(text) and text[end]==',': end+=1
+                          return start,end
+              raise RuntimeError(f'No object end: {key}')
+
+          basep=Path('libretro/libretro_core_options_base.h')
+          base=basep.read_text()
+          cur=subprocess.check_output(['git','show','origin/frameskip-modern:libretro/libretro_core_options.h'],text=True)
+          a,b=object_range(base,'-gles2n64-frameskip')
+          fs='''    {
+              CORE_NAME "-gles2n64-frameskip",
+              "gles2n64 Frame Skip",
+              "Frame Skip",
+              "Native Mupen64Plus FZ frameskip. Negative values use automatic catch-up with the selected maximum consecutive skips; positive values skip exactly that many graphics frames after each rendered frame. This renderer-specific mode takes precedence over the global Frame Skip option.",
+              NULL,
+              "gles2n64",
+              {
+                  {"0",  "Never skip frames"},
+                  {"-1", "No more than 1 frame"},
+                  {"-2", "No more than 2 frames"},
+                  {"-3", "No more than 3 frames"},
+                  {"-4", "No more than 4 frames"},
+                  {"-5", "No more than 5 frames"},
+                  {"1",  "Exactly 1 frame"},
+                  {"2",  "Exactly 2 frames"},
+                  {"3",  "Exactly 3 frames"},
+                  {"4",  "Exactly 4 frames"},
+                  {"5",  "Exactly 5 frames"},
+                  {NULL,NULL},
+              },
+              "0"
+          },'''
+          gln=[]
+          for key in ('-gln64-fog','-gln64-alpha-test','-gln64-screen-clear','-gln64-z-hack'):
+              x,y=object_range(cur,key); gln.append(cur[x:y].strip())
+          base=base[:a]+fs+'\n\n'+'\n'.join(gln)+base[b:]
+
+          desc={
+          '-glide64-fog':'Enable or disable N64 fog emulation. Game default keeps the per-ROM setting.',
+          '-glide64-buff-clear':'Clear the rendering buffer every frame. Game default keeps the per-ROM setting.',
+          '-glide64-swapmode':'Select when Glide64 swaps buffers: at VI, conditionally, or a mix of both methods. Conditional modes can prevent flicker in some games. Game default keeps the per-ROM setting.',
+          '-glide64-lodmode':'Select texture LOD calculation: Disabled, Fast, or Precise. Game default keeps the per-ROM setting.',
+          '-glide64-fb-smart':'Enable Smart Framebuffer emulation for games that render intermediate images or effects through the N64 framebuffer. Game default keeps the per-ROM setting.',
+          '-glide64-fb-render':'Enable software depth rendering for framebuffer effects that need N64 depth data. This can be expensive. Game default keeps the per-ROM setting.',
+          '-glide64-fb-crc-mode':'Select framebuffer CRC checking: Disabled, Fast, or Safe. Stricter checking improves change detection at a performance cost. Game default keeps the per-ROM setting.',
+          '-glide64-read-back-to-screen':'Render an N64 framebuffer back to the screen as a texture. Some games require this for framebuffer-based images and effects. Game default keeps the per-ROM setting.',
+          '-glide64-detect-cpu-write':'Show framebuffer images written directly by the CPU. Disabling this can hide CPU-drawn videos, menus, or effects. Game default keeps the per-ROM setting.',
+          '-glide64-alt-tex-size':'Use the alternate legacy texture-size calculation. This is a compatibility workaround for games whose texture sizes are interpreted incorrectly. Game default keeps the per-ROM setting.',
+          '-glide64-force-microcheck':'Check the graphics microcode each frame. Useful for games that switch between microcodes. Game default keeps the per-ROM setting.',
+          '-glide64-force-quad3d':'Force command 0xB5 to be interpreted as Quad3D instead of Line3D. Use only for games or microcodes that require it. Game default keeps the per-ROM setting.',
+          '-glide64-optimize-texrect':'Use fast texture-rectangle rendering with hardware framebuffer emulation. This can improve performance but some framebuffer effects need the full path. Game default keeps the per-ROM setting.',
+          '-glide64-fb-read-alpha':'Read the alpha channel from the framebuffer. Required by some transparency and compositing effects. Game default keeps the per-ROM setting.',
+          '-glide64-force-calc-sphere':'Force spherical texture-coordinate mapping. This is a compatibility workaround for games that require the legacy spherical calculation. Game default keeps the per-ROM setting.',
+          '-glide64-increase-texrect-edge':'Force texture-rectangle size to an integral edge by extending the lower-right boundary. Game default keeps the per-ROM setting.',
+          '-glide64-decrease-fillrect-edge':'Reduce the lower-right fill-rectangle edge by one unit. This fixes overdraw in specific games. Game default keeps the per-ROM setting.',
+          '-glide64-stipple-mode':'Select the 3dfx-style dithered-alpha/stipple emulation mode. Game default keeps the per-ROM setting.',
+          '-glide64-clip-zmin':'Enable clipping against the near Z plane. Game default keeps the per-ROM setting.',
+          '-glide64-adjust-aspect':'Adjust screen aspect using the game VI scales, including widescreen or unusual video modes. Game default keeps the per-ROM setting.',
+          '-glide64-correct-viewport':'Force a positive/corrected viewport for games that provide problematic viewport values. Game default keeps the per-ROM setting.',
+          '-glide64-zmode-compare-less':'Use the stricter less-than depth comparison path. This can fix depth tests in games that require it. Game default keeps the per-ROM setting.',
+          '-glide64-old-style-adither':'Apply alpha dithering regardless of the normal alpha-dither mode. Game default keeps the per-ROM setting.',
+          '-glide64-n64-z-scale':'Scale vertex Z values before writing to the depth buffer using the legacy N64 Z-scale behavior. Game default keeps the per-ROM setting.',
+          '-glide64-pal230':'Apply the special PAL video scale used by games that require the PAL230 workaround. Game default keeps the per-ROM setting.',
+          '-glide64-ignore-aux-copy':'Do not copy auxiliary framebuffers. This can improve performance but may break games that use auxiliary buffers. Game default keeps the per-ROM setting.',
+          '-glide64-useless-is-useless':'Enable the legacy handling for unchanged framebuffers. Game default keeps the per-ROM setting.',
+          '-glide64-fb-read-always':'Read the framebuffer every frame. This is slow, but is required by effects such as some Banjo-Kazooie and Donkey Kong 64 transitions. Game default keeps the per-ROM setting.'}
+          def setdesc(text,key,value):
+              a,b=object_range(text,key); obj=text[a:b]
+              ms=list(re.finditer(r'"(?:\\.|[^"\\])*"',obj))
+              if len(ms)<4: raise RuntimeError(f'Bad option layout: {key}')
+              m=ms[3]; v=value.replace('\\','\\\\').replace('"','\\"')
+              obj=obj[:m.start()]+'"'+v+'"'+obj[m.end():]
+              return text[:a]+obj+text[b:]
+          for k,v in desc.items(): base=setdesc(base,k,v)
+          basep.write_text(base)
+
+          wp=Path('libretro/libretro_core_options.h'); w=wp.read_text()
+          w=w.replace('"Ajustes avanzados de timing del núcleo. Auto conserva los valores específicos de cada juego."','"Advanced core timing controls. Auto preserves the game-specific defaults."')
+          wp.write_text(w)
+
+          lp=Path('libretro/libretro.c'); lib=lp.read_text()
+          lib=lib.replace('/* Native legacy-gles2n64 mode:\n *  0 = disabled, -1 = auto, 1..5 = manual.\n * Read by gles2n64 through libretro_private.h. */','/* Native legacy-gles2n64 mode, matching Mupen64Plus FZ semantics:\n *  0       = disabled\n * -1..-5  = automatic catch-up, absolute value is max consecutive skips\n *  1..5   = manual/exact skip count\n * Read by gles2n64 through libretro_private.h. */')
+          pat=re.compile(r'''(?m)^(\s*)if \(!strcmp\(var\.value, "auto"\)\)\n\s*mode = -1;\n\s*else if \(strcmp\(var\.value, "disabled"\)\)\n\s*mode = atoi\(var\.value\);\n\n\s*if \(mode < -1\)\n\s*mode = -1;\n\s*if \(mode > 5\)\n\s*mode = 5;''')
+          m=pat.search(lib)
+          if not m: raise RuntimeError('Simplified gles2n64 parser not found')
+          ind=m.group(1)
+          new=(ind+'/* Backward compatibility with older ReARMed option strings. */\n'+ind+'if (!strcmp(var.value, "auto"))\n'+ind+'   mode = -2;\n'+ind+'else if (!strcmp(var.value, "disabled"))\n'+ind+'   mode = 0;\n'+ind+'else\n'+ind+'   mode = atoi(var.value);\n\n'+ind+'if (mode < -5)\n'+ind+'   mode = -5;\n'+ind+'if (mode > 5)\n'+ind+'   mode = 5;')
+          lib=lib[:m.start()]+new+lib[m.end():]; lp.write_text(lib)
+
+          gp=Path('gles2n64/src/gles2N64.c'); g=gp.read_text()
+          g=g.replace('#define GLN64_FRAMESKIP_AUTO     (-1)\n#define GLN64_FRAMESKIP_AUTO_MAX 2','#define GLN64_FRAMESKIP_AUTO_MIN (-5)',1)
+          pat2=re.compile(r'''(?s)   if \(mode < GLN64_FRAMESKIP_AUTO\)\n      mode = GLN64_FRAMESKIP_AUTO;\n   if \(mode > 5\)\n      mode = 5;\n\n   if \(gln64_frame_skipper\.mode != mode\)\n   \{\n      gln64_frame_skipper\.mode = mode;\n      gln64_frame_skipper\.max_skips =\n         \(mode == GLN64_FRAMESKIP_AUTO\) \? GLN64_FRAMESKIP_AUTO_MAX :\n         \(\(mode > 0\) \? mode : 0\);\n      gln64_frameskip_start\(\);\n   \}''')
+          repl='''   if (mode < GLN64_FRAMESKIP_AUTO_MIN)
+              mode = GLN64_FRAMESKIP_AUTO_MIN;
+           if (mode > 5)
+              mode = 5;
+
+           if (gln64_frame_skipper.mode != mode)
+           {
+              gln64_frame_skipper.mode = mode;
+              gln64_frame_skipper.max_skips =
+                 (mode < 0) ? -mode : ((mode > 0) ? mode : 0);
+              gln64_frameskip_start();
+           }'''
+          g,n=pat2.subn(repl,g,count=1)
+          if n!=1: raise RuntimeError('Simplified gles2n64 sync block not found')
+          gp.write_text(g)
+          PY
+
+          git add libretro/libretro.c libretro/libretro_core_options.h libretro/libretro_core_options_base.h gles2n64/src/gles2N64.c
+          git diff --check --cached
+          test "$(grep -c 'CORE_NAME \"-glide64-' libretro/libretro_core_options_base.h)" -ge 29
+          test "$(grep -c 'CORE_NAME \"-gln64-' libretro/libretro_core_options_base.h)" -eq 4
+          grep -q 'No more than 5 frames' libretro/libretro_core_options_base.h
+          grep -q 'GLN64_FRAMESKIP_AUTO_MIN (-5)' gles2n64/src/gles2N64.c
+          grep -q 'parallel-n64-count-per-op' libretro/libretro.c
+          grep -q 'CORE_NAME "-gln64-fog"' libretro/libretro.c
+
+      - name: Commit integration
+        run: |
+          git commit -m "Refresh glN64 branch on final Glide64 option base"
+          git push origin HEAD:gln64-fz-refresh-final
