@@ -19,6 +19,7 @@ new_find_decl = "static int FindIniEntry(uint32_t dwCRC1, uint32_t dwCRC2, uint8
 if old_find_decl not in s:
     raise RuntimeError('FindIniEntry forward declaration marker not found')
 s = s.replace(old_find_decl, new_find_decl, 1)
+s = s.replace(new_find_decl + ' \n', new_find_decl + '\n', 1)
 
 old_load = """bool LoadConfiguration(void)
 {
