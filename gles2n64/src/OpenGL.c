@@ -32,6 +32,7 @@
 GLInfo OGL;
 
 static bool m_bFlatColors;
+static bool gln64_force_clear_pending = false;
 
 int OGL_IsExtSupported( const char *extension )
 {
@@ -1121,6 +1122,26 @@ int OGL_CheckError(void)
    return 0;
 }
 
+void OGL_ApplyPendingBufferClear(void)
+{
+   if (!gln64_force_clear_pending)
+      return;
+
+   gln64_force_clear_pending = false;
+
+   glDisable(GL_SCISSOR_TEST);
+   glDepthMask(GL_TRUE);
+#if defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES2)
+   glClearDepthf(1.0f);
+#else
+   glClearDepth(1.0);
+#endif
+   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+   glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+   _updateDepthUpdate();
+   glEnable(GL_SCISSOR_TEST);
+}
+
 void OGL_SwapBuffers(void)
 {
    int retro_return(bool a);
@@ -1129,6 +1150,12 @@ void OGL_SwapBuffers(void)
    if (renderCallback)
       (*renderCallback)();
    retro_return(true);
+
+   /* FZ clears color+depth after CoreVideo_GL_SwapBuffers().
+    * retro_return(true) is only a latch in this libretro fork, so an
+    * immediate clear would erase the frame before presentation.
+    * Defer it to the next display list instead. */
+   gln64_force_clear_pending = config.forceBufferClear != 0;
 
    scProgramChanged = 0;
 	gDP.otherMode.l = 0;

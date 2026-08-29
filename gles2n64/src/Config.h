@@ -70,6 +70,10 @@ typedef struct
 
     int     zHack;
 
+    int     enableFog;
+    int     enableAlphaTest;
+    int     forceBufferClear;
+
     int     enableNoise;
 
     int     hackAlpha;
@@ -92,6 +96,7 @@ extern gln64Config config;
 
 void Config_gln64_LoadConfig(void);
 void Config_gln64_LoadRomConfig(unsigned char* header);
+void Config_gln64_ApplyCoreOptions(void);
 
 #ifdef __cplusplus
 }

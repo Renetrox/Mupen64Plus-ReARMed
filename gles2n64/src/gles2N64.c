@@ -196,6 +196,7 @@ int gln64InitiateGFX (GFX_INFO Gfx_Info)
 {
     Config_gln64_LoadConfig();
     Config_gln64_LoadRomConfig(Gfx_Info.HEADER);
+    Config_gln64_ApplyCoreOptions();
 
     OGL_Start();
 
@@ -205,6 +206,11 @@ int gln64InitiateGFX (GFX_INFO Gfx_Info)
 void gln64ProcessDList(void)
 {
     OGL.frame_dl++;
+
+    /* FZ clears the new back buffer immediately after a real swap.
+     * libretro has no plugin-owned swap here, so perform that clear
+     * when the next graphics display list begins. */
+    OGL_ApplyPendingBufferClear();
 
     if (gln64_frameskip_will_skip_next())
     {

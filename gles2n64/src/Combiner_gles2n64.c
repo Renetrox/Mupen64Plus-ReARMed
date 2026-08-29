@@ -249,19 +249,22 @@ void Combiner_Set(uint64_t mux, int flags)
    if (flags == -1)
    {
       flags = 0;
-      if ((gSP.geometryMode & G_FOG))
+      if (config.enableFog && (gSP.geometryMode & G_FOG))
          flags |= SC_FOGENABLED;
 
-      if ((gDP.otherMode.alphaCompare == G_AC_THRESHOLD) && !(gDP.otherMode.alphaCvgSel))
+      if (config.enableAlphaTest)
       {
-         flags |= SC_ALPHAENABLED;
-         if (gDP.blendColor.a > 0.0f)
+         if ((gDP.otherMode.alphaCompare == G_AC_THRESHOLD) && !(gDP.otherMode.alphaCvgSel))
+         {
+            flags |= SC_ALPHAENABLED;
+            if (gDP.blendColor.a > 0.0f)
+               flags |= SC_ALPHAGREATER;
+         }
+         else if (gDP.otherMode.cvgXAlpha)
+         {
+            flags |= SC_ALPHAENABLED;
             flags |= SC_ALPHAGREATER;
-      }
-      else if (gDP.otherMode.cvgXAlpha)
-      {
-         flags |= SC_ALPHAENABLED;
-         flags |= SC_ALPHAGREATER;
+         }
       }
 
       if (gDP.otherMode.cycleType == G_CYC_2CYCLE)

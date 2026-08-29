@@ -270,6 +270,14 @@ static int      retro_frameskip_skip_current_vi = 0;
  * Read by gles2n64 through libretro_private.h. */
 static int retro_gles2n64_frameskip_mode = 0;
 
+
+/* glN64 controls mirrored from Mupen64Plus FZ. They are copied into
+ * the renderer after both global and per-ROM legacy config are read. */
+int gln64_core_fog          = 0;
+int gln64_core_alpha_test   = 1;
+int gln64_core_screen_clear = 0;
+int gln64_core_z_hack       = 0;
+
 int parallel_n64_get_gles2n64_frameskip_mode(void)
 {
    return retro_gles2n64_frameskip_mode;
@@ -1694,6 +1702,27 @@ void update_variables(bool startup)
 
       retro_gles2n64_frameskip_mode = mode;
    }
+
+   /* FZ-aligned legacy glN64 controls. */
+   var.key = CORE_NAME "-gln64-fog";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      gln64_core_fog = !strcmp(var.value, "enabled");
+
+   var.key = CORE_NAME "-gln64-alpha-test";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      gln64_core_alpha_test = strcmp(var.value, "disabled") != 0;
+
+   var.key = CORE_NAME "-gln64-screen-clear";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      gln64_core_screen_clear = !strcmp(var.value, "enabled");
+
+   var.key = CORE_NAME "-gln64-z-hack";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      gln64_core_z_hack = !strcmp(var.value, "enabled");
 
    /* CPU core selection: pure interpreter (0), cached interpreter (1),
     * or dynamic recompiler (2+). next reads r4300_emumode at init_device;

@@ -65,6 +65,8 @@ static Option configOptions[] =
    {"", NULL, 0},
 
    {"#Render Settings:", NULL, 0},
+   {"enable fog", &config.enableFog, 0},
+   {"enable alpha test", &config.enableAlphaTest, 1},
    {"enable noise", &config.enableNoise, 1},
    {"enable lod", &config.generalEmulation.enableLOD, 1},
    {"", NULL, 0},
@@ -77,6 +79,7 @@ static Option configOptions[] =
    {"", NULL, 0},
 
    {"#Other Settings:", NULL, 0},
+   {"force screen clear", &config.forceBufferClear, 0},
    {"", NULL, 0},
 
    {"#Hack Settings:", NULL, 0},
@@ -86,6 +89,20 @@ static Option configOptions[] =
 };
 
 static const int configOptionsSize = sizeof(configOptions) / sizeof(Option);
+
+
+extern int gln64_core_fog;
+extern int gln64_core_alpha_test;
+extern int gln64_core_screen_clear;
+extern int gln64_core_z_hack;
+
+void Config_gln64_ApplyCoreOptions(void)
+{
+   config.enableFog        = gln64_core_fog;
+   config.enableAlphaTest  = gln64_core_alpha_test;
+   config.forceBufferClear = gln64_core_screen_clear;
+   config.zHack            = gln64_core_z_hack;
+}
 
 static void Config_WriteConfig(const char *filename)
 {

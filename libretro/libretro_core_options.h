@@ -114,6 +114,63 @@ struct retro_core_option_v2_definition option_defs_us[] = {
     },
 
     {
+        CORE_NAME "-gln64-fog",
+        "gles2n64: Fog",
+        "Fog",
+        "Enable N64 fog in the legacy gles2n64/glN64 renderer. Mupen64Plus FZ defaults this renderer option to Off. Restart content after changing for deterministic shader state.",
+        NULL,
+        "gles2n64",
+        {
+            {"disabled", "Disabled"},
+            {"enabled", "Enabled"},
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+    {
+        CORE_NAME "-gln64-alpha-test",
+        "gles2n64: Alpha Test",
+        "Alpha Test",
+        "Enable glN64 alpha testing using the same threshold/cvgXAlpha decision used by Mupen64Plus FZ. Disabling can improve speed but may break transparency.",
+        NULL,
+        "gles2n64",
+        {
+            {"enabled", "Enabled"},
+            {"disabled", "Disabled"},
+            { NULL, NULL },
+        },
+        "enabled"
+    },
+    {
+        CORE_NAME "-gln64-screen-clear",
+        "gles2n64: Force Screen Clear",
+        "Force Screen Clear",
+        "FZ-style post-swap color/depth clear adapted for libretro. Because retro_return() only latches a frame, the clear is deferred until the next display list so the frame is not erased before RetroArch presents it. Restart content after changing.",
+        NULL,
+        "gles2n64",
+        {
+            {"disabled", "Disabled"},
+            {"enabled", "Enabled"},
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+    {
+        CORE_NAME "-gln64-z-hack",
+        "gles2n64: Z Hack",
+        "Z Hack",
+        "Enable the legacy glN64 depth transform used by Mupen64Plus FZ. Intended only for games that need it; changing it requires restarting content because the vertex shader is compiled at renderer startup.",
+        NULL,
+        "gles2n64",
+        {
+            {"disabled", "Disabled"},
+            {"enabled", "Enabled"},
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+
+    {
         CORE_NAME "-aleck64-testmode",
         "Aleck64: Test Mode",
         "Test Mode",
