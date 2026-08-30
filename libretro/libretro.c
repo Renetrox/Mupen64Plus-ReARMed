@@ -3207,10 +3207,10 @@ static void glsm_exit(void)
     * dead under the old mupencorestop guard). It is what lets glide64 composite
     * on the gl (compatibility) driver, but taking it live hangs gln64 and rice
     * at startup on both gl and glcore -- those renderers were already correct on
-    * glcore with no per-frame bind. Restrict the live cycle to glide64 until the
-    * gln64/rice hang is root-caused; the other GL renderers keep their prior
-    * (no per-frame bind) behaviour, which is their known-good state. */
-   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE)
+    * glcore with no per-frame bind. Keep the live cycle on the hardware GL renderers, including GLideN64.
+    * GLideN64, like upstream NX and historical GLupeN, requires the frontend GL
+    * state to be bound while its emulation slice is running. */
+   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE && gfx_plugin != GFX_GLIDEN64)
       return;
    glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
 #endif
@@ -3229,10 +3229,9 @@ static void glsm_enter(void)
    if (gfx_plugin == GFX_PARALLEL)
       return;
 #endif
-   /* See glsm_exit(): the live per-frame bind is restricted to glide64, the only
-    * renderer it is validated to help on the gl driver. gln64 and rice hang with
-    * it live, so they keep their prior no-per-frame-bind behaviour here. */
-   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE)
+   /* See glsm_exit(): keep the frontend GL state bound for the hardware GL
+    * renderers while the emulation slice runs, including GLideN64. */
+   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE && gfx_plugin != GFX_GLIDEN64)
       return;
    glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
 #endif
