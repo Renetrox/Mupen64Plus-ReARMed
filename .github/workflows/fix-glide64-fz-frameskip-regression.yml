@@ -1,1 +1,147 @@
-name: placeholder
+name: Fix Glide64 FZ frameskip regression
+
+on:
+  push:
+    branches:
+      - frameskip-modern
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: frameskip-modern
+          fetch-depth: 0
+
+      - name: Restore FZ frameskip bridge
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('libretro/libretro.c')
+          s = p.read_text()
+          old = '''   var.key = "parallel-n64-glide64-frameskip";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (!strcmp(var.value, "auto"))
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_AUTO, 5);
+      else if (!strcmp(var.value, "disabled"))
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
+      else
+      {
+         int max_skips = atoi(var.value);
+         if (max_skips < 1)
+            max_skips = 1;
+         if (max_skips > 5)
+            max_skips = 5;
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_MANUAL, max_skips);
+      }
+   }
+   else
+      glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
+'''
+          new = '''   var.key = "parallel-n64-glide64-frameskip";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      int mode = 0;
+
+      /* Backward compatibility with the previous ReARMed strings. The old
+       * single Automatic mode already used Glide64's maximum of five skips,
+       * so preserve it as the FZ -5 setting. */
+      if (!strcmp(var.value, "auto"))
+         mode = -5;
+      else if (!strcmp(var.value, "disabled"))
+         mode = 0;
+      else
+         mode = atoi(var.value);
+
+      if (mode < -5)
+         mode = -5;
+      if (mode > 5)
+         mode = 5;
+
+      if (mode < 0)
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_AUTO, -mode);
+      else if (mode > 0)
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_MANUAL, mode);
+      else
+         glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
+   }
+   else
+      glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
+'''
+          if s.count(old) != 1:
+              raise SystemExit(f'libretro.c: expected one old Glide64 frameskip block, found {s.count(old)}')
+          p.write_text(s.replace(old, new, 1))
+
+          p = Path('libretro/libretro_core_options_base.h')
+          s = p.read_text()
+          old = '''    {
+        CORE_NAME "-glide64-frameskip",
+        "Glide64: Frameskip",
+        "Frameskip",
+        "Skip Glide64 graphics display lists to reduce rendering load. Automatic mode skips only when emulation falls behind and may skip up to five consecutive frames. Disabled preserves normal rendering.",
+        NULL,
+        "glide64",
+        {
+            { "disabled", "Disabled" },
+            { "auto", "Automatic" },
+            { "1", "1" },
+            { "2", "2" },
+            { "3", "3" },
+            { "4", "4" },
+            { "5", "5" },
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+'''
+          new = '''    {
+        CORE_NAME "-glide64-frameskip",
+        "Glide64: Frameskip",
+        "Frameskip",
+        "Native Glide64mk2/FZ-style frameskip. Negative values use automatic catch-up with the selected maximum consecutive skips; positive values skip exactly that many graphics frames after each rendered frame. This native mode takes precedence over the global Frame Skip while Glide64 is active.",
+        NULL,
+        "glide64",
+        {
+            { "0",  "Never skip frames" },
+            { "-1", "No more than 1 frame" },
+            { "-2", "No more than 2 frames" },
+            { "-3", "No more than 3 frames" },
+            { "-4", "No more than 4 frames" },
+            { "-5", "No more than 5 frames" },
+            { "1",  "Exactly 1 frame" },
+            { "2",  "Exactly 2 frames" },
+            { "3",  "Exactly 3 frames" },
+            { "4",  "Exactly 4 frames" },
+            { "5",  "Exactly 5 frames" },
+            { NULL, NULL },
+        },
+        "0"
+    },
+'''
+          if s.count(old) != 1:
+              raise SystemExit(f'core options: expected one old Glide64 frameskip block, found {s.count(old)}')
+          p.write_text(s.replace(old, new, 1))
+
+          libretro = Path('libretro/libretro.c').read_text()
+          opts = Path('libretro/libretro_core_options_base.h').read_text()
+          assert 'mode = -5;' in libretro
+          assert 'GLIDE64_FRAMESKIP_AUTO, -mode' in libretro
+          assert '{ "-5", "No more than 5 frames" }' in opts
+          assert '{ "5",  "Exactly 5 frames" }' in opts
+
+      - name: Remove temporary workflow and commit clean fix
+        run: |
+          git rm .github/workflows/fix-glide64-fz-frameskip-regression.yml
+          git add libretro/libretro.c libretro/libretro_core_options_base.h
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "glide64: restore complete FZ frameskip semantics"
+          git push origin HEAD:frameskip-modern
