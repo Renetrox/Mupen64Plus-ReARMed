@@ -18,124 +18,33 @@ jobs:
           fetch-depth: 0
 
       - name: Restore FZ frameskip bridge
-        shell: python
+        env:
+          OLD_LIB: ICAgdmFyLmtleSA9ICJwYXJhbGxlbC1uNjQtZ2xpZGU2NC1mcmFtZXNraXAiOwogICB2YXIudmFsdWUgPSBOVUxMOwogICBpZiAoZW52aXJvbl9jYihSRVRST19FTlZJUk9OTUVOVF9HRVRfVkFSSUFCTEUsICZ2YXIpICYmIHZhci52YWx1ZSkKICAgewogICAgICBpZiAoIXN0cmNtcCh2YXIudmFsdWUsICJhdXRvIikpCiAgICAgICAgIGdsaWRlNjRfZnJhbWVza2lwX2NvbmZpZ3VyZShHTElERTY0X0ZSQU1FU0tJUF9BVVRPLCA1KTsKICAgICAgZWxzZSBpZiAoIXN0cmNtcCh2YXIudmFsdWUsICJkaXNhYmxlZCIpKQogICAgICAgICBnbGlkZTY0X2ZyYW1lc2tpcF9jb25maWd1cmUoR0xJREU2NF9GUkFNRVNLSVBfRElTQUJMRUQsIDApOwogICAgICBlbHNlCiAgICAgIHsKICAgICAgICAgaW50IG1heF9za2lwcyA9IGF0b2kodmFyLnZhbHVlKTsKICAgICAgICAgaWYgKG1heF9za2lwcyA8IDEpCiAgICAgICAgICAgIG1heF9za2lwcyA9IDE7CiAgICAgICAgIGlmIChtYXhfc2tpcHMgPiA1KQogICAgICAgICAgICBtYXhfc2tpcHMgPSA1OwogICAgICAgICBnbGlkZTY0X2ZyYW1lc2tpcF9jb25maWd1cmUoR0xJREU2NF9GUkFNRVNLSVBfTUFOVUFMLCBtYXhfc2tpcHMpOwogICAgICB9CiAgIH0KICAgZWxzZQogICAgICBnbGlkZTY0X2ZyYW1lc2tpcF9jb25maWd1cmUoR0xJREU2NF9GUkFNRVNLSVBfRElTQUJMRUQsIDApOwo=
+          NEW_LIB: ICAgdmFyLmtleSA9ICJwYXJhbGxlbC1uNjQtZ2xpZGU2NC1mcmFtZXNraXAiOwogICB2YXIudmFsdWUgPSBOVUxMOwogICBpZiAoZW52aXJvbl9jYihSRVRST19FTlZJUk9OTUVOVF9HRVRfVkFSSUFCTEUsICZ2YXIpICYmIHZhci52YWx1ZSkKICAgewogICAgICBpbnQgbW9kZSA9IDA7CgogICAgICAvKiBCYWNrd2FyZCBjb21wYXRpYmlsaXR5IHdpdGggdGhlIHByZXZpb3VzIFJlQVJNZWQgc3RyaW5ncy4gVGhlIG9sZAogICAgICAgKiBzaW5nbGUgQXV0b21hdGljIG1vZGUgYWxyZWFkeSB1c2VkIEdsaWRlNjQncyBtYXhpbXVtIG9mIGZpdmUgc2tpcHMsCiAgICAgICAqIHNvIHByZXNlcnZlIGl0IGFzIHRoZSBGWiAtNSBzZXR0aW5nLiAqLwogICAgICBpZiAoIXN0cmNtcCh2YXIudmFsdWUsICJhdXRvIikpCiAgICAgICAgIG1vZGUgPSAtNTsKICAgICAgZWxzZSBpZiAoIXN0cmNtcCh2YXIudmFsdWUsICJkaXNhYmxlZCIpKQogICAgICAgICBtb2RlID0gMDsKICAgICAgZWxzZQogICAgICAgICBtb2RlID0gYXRvaSh2YXIudmFsdWUpOwoKICAgICAgaWYgKG1vZGUgPCAtNSkKICAgICAgICAgbW9kZSA9IC01OwogICAgICBpZiAobW9kZSA+IDUpCiAgICAgICAgIG1vZGUgPSA1OwoKICAgICAgaWYgKG1vZGUgPCAwKQogICAgICAgICBnbGlkZTY0X2ZyYW1lc2tpcF9jb25maWd1cmUoR0xJREU2NF9GUkFNRVNLSVBfQVVUTywgLW1vZGUpOwogICAgICBlbHNlIGlmIChtb2RlID4gMCkKICAgICAgICAgZ2xpZGU2NF9mcmFtZXNraXBfY29uZmlndXJlKEdMSURFNjRfRlJBTUVTS0lQX01BTlVBTCwgbW9kZSk7CiAgICAgIGVsc2UKICAgICAgICAgZ2xpZGU2NF9mcmFtZXNraXBfY29uZmlndXJlKEdMSURFNjRfRlJBTUVTS0lQX0RJU0FCTEVELCAwKTsKICAgfQogICBlbHNlCiAgICAgIGdsaWRlNjRfZnJhbWVza2lwX2NvbmZpZ3VyZShHTElERTY0X0ZSQU1FU0tJUF9ESVNBQkxFRCwgMCk7Cg==
+          OLD_OPT: ICAgIHsKICAgICAgICBDT1JFX05BTUUgIi1nbGlkZTY0LWZyYW1lc2tpcCIsCiAgICAgICAgIkdsaWRlNjQ6IEZyYW1lc2tpcCIsCiAgICAgICAgIkZyYW1lc2tpcCIsCiAgICAgICAgIlNraXAgR2xpZGU2NCBncmFwaGljcyBkaXNwbGF5IGxpc3RzIHRvIHJlZHVjZSByZW5kZXJpbmcgbG9hZC4gQXV0b21hdGljIG1vZGUgc2tpcHMgb25seSB3aGVuIGVtdWxhdGlvbiBmYWxscyBiZWhpbmQgYW5kIG1heSBza2lwIHVwIHRvIGZpdmUgY29uc2VjdXRpdmUgZnJhbWVzLiBEaXNhYmxlZCBwcmVzZXJ2ZXMgbm9ybWFsIHJlbmRlcmluZy4iLAogICAgICAgIE5VTEwsCiAgICAgICAgImdsaWRlNjQiLAogICAgICAgIHsKICAgICAgICAgICAgeyAiZGlzYWJsZWQiLCAiRGlzYWJsZWQiIH0sCiAgICAgICAgICAgIHsgImF1dG8iLCAiQXV0b21hdGljIiB9LAogICAgICAgICAgICB7ICIxIiwgIjEiIH0sCiAgICAgICAgICAgIHsgIjIiLCAiMiIgfSwKICAgICAgICAgICAgeyAiMyIsICIzIiB9LAogICAgICAgICAgICB7ICI0IiwgIjQiIH0sCiAgICAgICAgICAgIHsgIjUiLCAiNSIgfSwKICAgICAgICAgICAgeyBOVUxMLCBOVUxMIH0sCiAgICAgICAgfSwKICAgICAgICAiZGlzYWJsZWQiCiAgICB9LAo=
+          NEW_OPT: ICAgIHsKICAgICAgICBDT1JFX05BTUUgIi1nbGlkZTY0LWZyYW1lc2tpcCIsCiAgICAgICAgIkdsaWRlNjQ6IEZyYW1lc2tpcCIsCiAgICAgICAgIkZyYW1lc2tpcCIsCiAgICAgICAgIk5hdGl2ZSBHbGlkZTY0bWsyL0ZaLXN0eWxlIGZyYW1lc2tpcC4gTmVnYXRpdmUgdmFsdWVzIHVzZSBhdXRvbWF0aWMgY2F0Y2gtdXAgd2l0aCB0aGUgc2VsZWN0ZWQgbWF4aW11bSBjb25zZWN1dGl2ZSBza2lwczsgcG9zaXRpdmUgdmFsdWVzIHNraXAgZXhhY3RseSB0aGF0IG1hbnkgZ3JhcGhpY3MgZnJhbWVzIGFmdGVyIGVhY2ggcmVuZGVyZWQgZnJhbWUuIFRoaXMgbmF0aXZlIG1vZGUgdGFrZXMgcHJlY2VkZW5jZSBvdmVyIHRoZSBnbG9iYWwgRnJhbWUgU2tpcCB3aGlsZSBHbGlkZTY0IGlzIGFjdGl2ZS4iLAogICAgICAgIE5VTEwsCiAgICAgICAgImdsaWRlNjQiLAogICAgICAgIHsKICAgICAgICAgICAgeyAiMCIsICAiTmV2ZXIgc2tpcCBmcmFtZXMiIH0sCiAgICAgICAgICAgIHsgIi0xIiwgIk5vIG1vcmUgdGhhbiAxIGZyYW1lIiB9LAogICAgICAgICAgICB7ICItMiIsICJObyBtb3JlIHRoYW4gMiBmcmFtZXMiIH0sCiAgICAgICAgICAgIHsgIi0zIiwgIk5vIG1vcmUgdGhhbiAzIGZyYW1lcyIgfSwKICAgICAgICAgICAgeyAiLTQiLCAiTm8gbW9yZSB0aGFuIDQgZnJhbWVzIiB9LAogICAgICAgICAgICB7ICItNSIsICJObyBtb3JlIHRoYW4gNSBmcmFtZXMiIH0sCiAgICAgICAgICAgIHsgIjEiLCAgIkV4YWN0bHkgMSBmcmFtZSIgfSwKICAgICAgICAgICAgeyAiMiIsICAiRXhhY3RseSAyIGZyYW1lcyIgfSwKICAgICAgICAgICAgeyAiMyIsICAiRXhhY3RseSAzIGZyYW1lcyIgfSwKICAgICAgICAgICAgeyAiNCIsICAiRXhhY3RseSA0IGZyYW1lcyIgfSwKICAgICAgICAgICAgeyAiNSIsICAiRXhhY3RseSA1IGZyYW1lcyIgfSwKICAgICAgICAgICAgeyBOVUxMLCBOVUxMIH0sCiAgICAgICAgfSwKICAgICAgICAiMCIKICAgIH0sCg==
         run: |
+          python3 - <<'PY'
+          import base64, os
           from pathlib import Path
-
-          p = Path('libretro/libretro.c')
-          s = p.read_text()
-          old = '''   var.key = "parallel-n64-glide64-frameskip";
-   var.value = NULL;
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-   {
-      if (!strcmp(var.value, "auto"))
-         glide64_frameskip_configure(GLIDE64_FRAMESKIP_AUTO, 5);
-      else if (!strcmp(var.value, "disabled"))
-         glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
-      else
-      {
-         int max_skips = atoi(var.value);
-         if (max_skips < 1)
-            max_skips = 1;
-         if (max_skips > 5)
-            max_skips = 5;
-         glide64_frameskip_configure(GLIDE64_FRAMESKIP_MANUAL, max_skips);
-      }
-   }
-   else
-      glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
-'''
-          new = '''   var.key = "parallel-n64-glide64-frameskip";
-   var.value = NULL;
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-   {
-      int mode = 0;
-
-      /* Backward compatibility with the previous ReARMed strings. The old
-       * single Automatic mode already used Glide64's maximum of five skips,
-       * so preserve it as the FZ -5 setting. */
-      if (!strcmp(var.value, "auto"))
-         mode = -5;
-      else if (!strcmp(var.value, "disabled"))
-         mode = 0;
-      else
-         mode = atoi(var.value);
-
-      if (mode < -5)
-         mode = -5;
-      if (mode > 5)
-         mode = 5;
-
-      if (mode < 0)
-         glide64_frameskip_configure(GLIDE64_FRAMESKIP_AUTO, -mode);
-      else if (mode > 0)
-         glide64_frameskip_configure(GLIDE64_FRAMESKIP_MANUAL, mode);
-      else
-         glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
-   }
-   else
-      glide64_frameskip_configure(GLIDE64_FRAMESKIP_DISABLED, 0);
-'''
-          if s.count(old) != 1:
-              raise SystemExit(f'libretro.c: expected one old Glide64 frameskip block, found {s.count(old)}')
-          p.write_text(s.replace(old, new, 1))
-
-          p = Path('libretro/libretro_core_options_base.h')
-          s = p.read_text()
-          old = '''    {
-        CORE_NAME "-glide64-frameskip",
-        "Glide64: Frameskip",
-        "Frameskip",
-        "Skip Glide64 graphics display lists to reduce rendering load. Automatic mode skips only when emulation falls behind and may skip up to five consecutive frames. Disabled preserves normal rendering.",
-        NULL,
-        "glide64",
-        {
-            { "disabled", "Disabled" },
-            { "auto", "Automatic" },
-            { "1", "1" },
-            { "2", "2" },
-            { "3", "3" },
-            { "4", "4" },
-            { "5", "5" },
-            { NULL, NULL },
-        },
-        "disabled"
-    },
-'''
-          new = '''    {
-        CORE_NAME "-glide64-frameskip",
-        "Glide64: Frameskip",
-        "Frameskip",
-        "Native Glide64mk2/FZ-style frameskip. Negative values use automatic catch-up with the selected maximum consecutive skips; positive values skip exactly that many graphics frames after each rendered frame. This native mode takes precedence over the global Frame Skip while Glide64 is active.",
-        NULL,
-        "glide64",
-        {
-            { "0",  "Never skip frames" },
-            { "-1", "No more than 1 frame" },
-            { "-2", "No more than 2 frames" },
-            { "-3", "No more than 3 frames" },
-            { "-4", "No more than 4 frames" },
-            { "-5", "No more than 5 frames" },
-            { "1",  "Exactly 1 frame" },
-            { "2",  "Exactly 2 frames" },
-            { "3",  "Exactly 3 frames" },
-            { "4",  "Exactly 4 frames" },
-            { "5",  "Exactly 5 frames" },
-            { NULL, NULL },
-        },
-        "0"
-    },
-'''
-          if s.count(old) != 1:
-              raise SystemExit(f'core options: expected one old Glide64 frameskip block, found {s.count(old)}')
-          p.write_text(s.replace(old, new, 1))
-
-          libretro = Path('libretro/libretro.c').read_text()
+          pairs = [
+              ('libretro/libretro.c', 'OLD_LIB', 'NEW_LIB'),
+              ('libretro/libretro_core_options_base.h', 'OLD_OPT', 'NEW_OPT'),
+          ]
+          for filename, oldkey, newkey in pairs:
+              path = Path(filename)
+              text = path.read_text()
+              old = base64.b64decode(os.environ[oldkey]).decode()
+              new = base64.b64decode(os.environ[newkey]).decode()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{filename}: expected exactly one regression block, found {count}')
+              path.write_text(text.replace(old, new, 1))
+          assert 'GLIDE64_FRAMESKIP_AUTO, -mode' in Path('libretro/libretro.c').read_text()
           opts = Path('libretro/libretro_core_options_base.h').read_text()
-          assert 'mode = -5;' in libretro
-          assert 'GLIDE64_FRAMESKIP_AUTO, -mode' in libretro
           assert '{ "-5", "No more than 5 frames" }' in opts
           assert '{ "5",  "Exactly 5 frames" }' in opts
+          PY
 
       - name: Remove temporary workflow and commit clean fix
         run: |
