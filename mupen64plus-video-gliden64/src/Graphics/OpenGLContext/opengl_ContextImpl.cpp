@@ -1,4 +1,7 @@
 #include <assert.h>
+#ifdef __LIBRETRO__
+#include "glsm/glsm.h"
+#endif
 #include <Log.h>
 #include <Config.h>
 #include <Graphics/Parameters.h>
@@ -29,8 +32,6 @@
 #ifdef OS_ANDROID
 #include <Graphics/OpenGLContext/GraphicBuffer/GraphicBufferWrapper.h>
 #endif
-
-#include "glsm/glsm.h"
 
 using namespace opengl;
 

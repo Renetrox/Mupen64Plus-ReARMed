@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <cstdlib>
+#ifdef __LIBRETRO__
+#include "glsm/glsm.h"
+#endif
 #include <Graphics/Context.h>
 #include <Graphics/OpenGLContext/GLFunctions.h>
 #include <Graphics/OpenGLContext/opengl_Utils.h>
@@ -16,10 +19,6 @@
 #include <libretro_private.h>
 // #include <mupen64plus-next_common.h>
 using namespace opengl;
-
-#ifdef __LIBRETRO__
-#include "glsm/glsm.h"
-#endif
 
 class DisplayWindowMupen64plus : public DisplayWindow
 {

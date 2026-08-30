@@ -2967,9 +2967,12 @@ bool retro_load_game(const struct retro_game_info *game)
 
       if (!vulkan_inited)
       {
-         retro_init_gl(/*core*/ (gfx_plugin == GFX_GLIDEN64)
-                             || (gfx_plugin == GFX_PARALLEL));
-         gl_inited = true;
+         /* On HAVE_OPENGLES builds retro_init_gl() deliberately does not
+          * request a desktop GL core version. This lets a FORCE_GLES=1 build
+          * reach GLideN64's retained GLES2 capability/fallback paths. Never
+          * claim the context exists when GLSM rejected the request. */
+         gl_inited = retro_init_gl(/*core*/ (gfx_plugin == GFX_GLIDEN64)
+                                        || (gfx_plugin == GFX_PARALLEL));
       }
    }
 

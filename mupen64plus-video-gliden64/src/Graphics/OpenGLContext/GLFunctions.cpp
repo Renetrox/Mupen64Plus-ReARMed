@@ -1,10 +1,10 @@
 #ifdef __LIBRETRO__
-#include <glsm/glsmsym.h>
-#define NO_GL_WRAP 1
+#include <glsm/glsm.h>
 #endif
-#include <glsm/glsmsym.h>
 
 #include "GLFunctions.h"
+
+#include <glsm/glsmsym.h>
 
 #define ASSIGN_PROC_ADR(proc_type, proc_name) g_##proc_name = (proc_type) r##proc_name
 
