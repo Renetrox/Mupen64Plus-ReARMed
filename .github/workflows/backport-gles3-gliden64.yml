@@ -1,0 +1,78 @@
+name: Backport GLideN64 GLES3 support
+
+on:
+  push:
+    branches:
+      - frameskip-modern
+    paths:
+      - .github/workflows/backport-gles3-gliden64.yml
+
+permissions:
+  contents: write
+
+jobs:
+  backport:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out frameskip-modern
+        uses: actions/checkout@v4
+        with:
+          ref: frameskip-modern
+          fetch-depth: 0
+
+      - name: Apply upstream GLES3 series
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add parallel https://github.com/libretro/parallel-n64.git
+          git fetch parallel \
+            6d5fa8b8064dd112c3bde5f5a35c4eab248c7aec \
+            b9fcff12bdcf1e0059f89bba84bbfcd24138bd12 \
+            c7189c5deb8f74d1b2d572fa83acbc022b80cf4b \
+            fd77534350181d74e9d3c1c9a7c6ac6d0589f5b0 \
+            beed083b8473e4ae217588cd7ed3db7c746cc46c
+
+          git cherry-pick -x 6d5fa8b8064dd112c3bde5f5a35c4eab248c7aec
+          git cherry-pick -x b9fcff12bdcf1e0059f89bba84bbfcd24138bd12
+          git cherry-pick -x c7189c5deb8f74d1b2d572fa83acbc022b80cf4b
+          git cherry-pick -x fd77534350181d74e9d3c1c9a7c6ac6d0589f5b0
+          git cherry-pick -x beed083b8473e4ae217588cd7ed3db7c746cc46c
+
+          git diff --check HEAD~5..HEAD
+          grep -F 'ifeq ($(GLES3),1)' Makefile.common
+          grep -F -- '-DHAVE_OPENGLES -DHAVE_OPENGLES3' Makefile.common
+          grep -F 'glsym_es3.c' Makefile.common
+          grep -F '#elif defined(HAVE_OPENGLES3)' mupen64plus-video-gliden64/src/Graphics/OpenGLContext/GLFunctions.h
+          grep -F '#define APIENTRYP APIENTRY *' libretro-common/include/glsym/glsym_es3.h
+          grep -F 'defined(HAVE_OPENGLES3) || defined(HAVE_OPENGLES_3_1)' libretro-common/glsm/glsm.c
+
+      - name: Probe GLES3 build
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev
+          make clean >/dev/null 2>&1 || true
+          set +e
+          make GLES3=1 -j2 > /tmp/gles3-build.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/gles3-build.log
+          if grep -E '(^|[^[:alpha:]])(fatal error:|error:)' /tmp/gles3-build.log | grep -v 'collect2: error: ld returned' ; then
+            echo 'GLES3 compile error detected.' >&2
+            exit 1
+          fi
+          if [ "$rc" -ne 0 ]; then
+            echo 'Build reached the existing final-link failure; source compilation itself was clean.'
+          fi
+
+      - name: Remove helper and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/backport-gles3-gliden64.yml
+          git add .github/workflows/backport-gles3-gliden64.yml
+          git commit -m 'ci: remove temporary GLideN64 GLES3 backport helper'
+          git push origin HEAD:frameskip-modern
