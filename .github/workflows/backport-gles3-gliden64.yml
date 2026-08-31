@@ -20,27 +20,87 @@ jobs:
           ref: frameskip-modern
           fetch-depth: 0
 
-      - name: Apply upstream GLES3 series
+      - name: Apply GLES3 support to ReARMed
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git remote add parallel https://github.com/libretro/parallel-n64.git
-          git fetch parallel \
-            6d5fa8b8064dd112c3bde5f5a35c4eab248c7aec \
-            b9fcff12bdcf1e0059f89bba84bbfcd24138bd12 \
-            c7189c5deb8f74d1b2d572fa83acbc022b80cf4b \
-            fd77534350181d74e9d3c1c9a7c6ac6d0589f5b0 \
-            beed083b8473e4ae217588cd7ed3db7c746cc46c
 
-          git cherry-pick -x 6d5fa8b8064dd112c3bde5f5a35c4eab248c7aec
-          git cherry-pick -x b9fcff12bdcf1e0059f89bba84bbfcd24138bd12
-          git cherry-pick -x c7189c5deb8f74d1b2d572fa83acbc022b80cf4b
-          git cherry-pick -x fd77534350181d74e9d3c1c9a7c6ac6d0589f5b0
-          git cherry-pick -x beed083b8473e4ae217588cd7ed3db7c746cc46c
+          python3 - <<'PY'
+          from pathlib import Path
 
-          git diff --check HEAD~5..HEAD
+          def replace_exact(path, old, new, count=1):
+              p = Path(path)
+              s = p.read_text()
+              n = s.count(old)
+              if n != count:
+                  raise SystemExit(f'{path}: expected {count} occurrence(s), found {n}')
+              p.write_text(s.replace(old, new))
+
+          # parallel-n64 6d5fa8b: glsym_es3.h must define APIENTRYP before
+          # the GLES headers' GL_APIENTRY branch reaches typedefs that use it.
+          replace_exact(
+              'libretro-common/include/glsym/glsym_es3.h',
+              '''#ifdef GL_APIENTRY\ntypedef void (GL_APIENTRY *RGLGENGLDEBUGPROC)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar*, GLvoid*);\ntypedef void (GL_APIENTRY *RGLGENGLDEBUGPROCKHR)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar*, GLvoid*);\n#else\n#ifndef APIENTRY\n#define APIENTRY\n#endif\n#ifndef APIENTRYP\n#define APIENTRYP APIENTRY *\n#endif\n''',
+              '''#ifndef APIENTRY\n#define APIENTRY\n#endif\n#ifndef APIENTRYP\n#define APIENTRYP APIENTRY *\n#endif\n#ifdef GL_APIENTRY\ntypedef void (GL_APIENTRY *RGLGENGLDEBUGPROC)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar*, GLvoid*);\ntypedef void (GL_APIENTRY *RGLGENGLDEBUGPROCKHR)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar*, GLvoid*);\n#else\n''')
+
+          # parallel-n64 b9fcff1: preserve GLideN64 on GLES3 while keeping the
+          # old GLES=1 path as GLES2-only.
+          replace_exact(
+              'Makefile.common',
+              '''# GLideN64 needs OpenGL 3.3 Core or OpenGL ES 3.x (UBOs, integer textures,\n# glcorearb.h, etc.) and does not work on GLES2-only targets. The Makefile's\n# GLES=1 switch maps to -DHAVE_OPENGLES2 with no GLES3 path, so force it off\n# there. Other GLES2-only configurations should also unset HAVE_GLIDEN64.\nifeq ($(GLES),1)\n\tHAVE_GLIDEN64 = 0\nendif\n''',
+              '''# GLideN64 needs OpenGL 3.3 Core or OpenGL ES 3.x (UBOs, integer textures,\n# glcorearb.h, etc.) and does not work on GLES2-only targets. GLES=1 maps to\n# -DHAVE_OPENGLES2, so force it off there. GLES3=1 selects the GLES 3.x path\n# below and does satisfy GLideN64, so it is left enabled in that case.\nifeq ($(GLES),1)\nifneq ($(GLES3),1)\n\tHAVE_GLIDEN64 = 0\nendif\nendif\n''')
+
+          replace_exact(
+              'Makefile.common',
+              '''ifeq ($(HAVE_OPENGL),1)\nifeq ($(GLES),1)\n\tGLFLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES2 -DDISABLE_3POINT\n\tSOURCES_C += $(LIBRETRO_COMM_DIR)/glsym/glsym_es2.c\nelse\n''',
+              '''ifeq ($(HAVE_OPENGL),1)\nifeq ($(GLES3),1)\n\t# GLES 3.x path. HAVE_OPENGLES3 makes glsm request a GLES3 context and\n\t# enables the GLES3 wrappers in glsm.c; without it they compile to stubs.\n\tGLFLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES3 -DDISABLE_3POINT\n\tSOURCES_C += $(LIBRETRO_COMM_DIR)/glsym/glsym_es3.c\nelse ifeq ($(GLES),1)\n\tGLFLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES2 -DDISABLE_3POINT\n\tSOURCES_C += $(LIBRETRO_COMM_DIR)/glsym/glsym_es2.c\nelse\n''')
+
+          replace_exact(
+              'mupen64plus-video-gliden64/src/Graphics/OpenGLContext/GLFunctions.h',
+              '''#ifdef EGL\n#include <GL/glcorearb.h>\n#include <EGL/egl.h>\n#include <EGL/eglext.h>\n#elif defined(OS_MAC_OS_X)\n''',
+              '''#ifdef EGL\n#include <GL/glcorearb.h>\n#include <EGL/egl.h>\n#include <EGL/eglext.h>\n#elif defined(HAVE_OPENGLES3)\n/* Desktop <GL/gl.h> must stay out: it declares glEnable and friends as real\n * functions, and glsmsym.h has already turned those names into macros.\n * Pull GLES headers in before the glX -> g_glX aliases below. */\n#include <glsym/rglgen_headers.h>\n#include <GL/glcorearb.h>\n#elif defined(OS_MAC_OS_X)\n''')
+
+          # parallel-n64 c7189c5: GLES3 has core gl_FragDepth; only GLES2
+          # should default fragment depth writes off. Limit the replacement to
+          # the option default shape so unrelated GLES guards stay intact.
+          p = Path('libretro/libretro_core_options.h')
+          s = p.read_text()
+          needle = '#ifdef HAVE_OPENGLES\n        "False"\n#else\n        "True"'
+          if s.count(needle) != 1:
+              raise SystemExit(f'libretro_core_options.h: fragment-depth default shape count={s.count(needle)}')
+          s = s.replace(needle, '#ifdef HAVE_OPENGLES2\n        "False"\n#else\n        "True"')
+          p.write_text(s)
+
+          # parallel-n64 fd775343: program binaries are core in GLES 3.0.
+          replace_exact(
+              'libretro-common/glsm/glsm.c',
+              '#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES_3_1)\n   glProgramBinary(program, binaryFormat, binary, length);',
+              '#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && (defined(HAVE_OPENGLES3) || defined(HAVE_OPENGLES_3_1))\n   glProgramBinary(program, binaryFormat, binary, length);')
+
+          # parallel-n64 beed083b: shader storage is unavailable only on GLES2,
+          # not on every GLES target.
+          replace_exact(
+              'libretro/libretro.c',
+              '#if !defined(VC) && !defined(HAVE_OPENGLES)\n   var.key = CORE_NAME "-gliden64-EnableShadersStorage";',
+              '#if !defined(VC) && !defined(HAVE_OPENGLES2)\n   var.key = CORE_NAME "-gliden64-EnableShadersStorage";')
+          replace_exact(
+              'libretro/libretro_core_options.h',
+              '#if !defined(VC) && !defined(HAVE_OPENGLES)\n    {\n        CORE_NAME "-gliden64-EnableShadersStorage",',
+              '#if !defined(VC) && !defined(HAVE_OPENGLES2)\n    {\n        CORE_NAME "-gliden64-EnableShadersStorage",')
+          PY
+
+          git diff --check
+          git add Makefile.common \
+            libretro-common/include/glsym/glsym_es3.h \
+            libretro-common/glsm/glsm.c \
+            libretro/libretro.c \
+            libretro/libretro_core_options.h \
+            mupen64plus-video-gliden64/src/Graphics/OpenGLContext/GLFunctions.h
+          git commit -m 'gliden64: add GLES3 build path for SBC targets' \
+            -m 'Backport the GLES3 enablement from current libretro/parallel-n64 (6d5fa8b, b9fcff1, c7189c5, fd775343, beed083b) onto the ReARMed tree. Preserve the existing GLES2 path and legacy renderer behavior.'
+
           grep -F 'ifeq ($(GLES3),1)' Makefile.common
           grep -F -- '-DHAVE_OPENGLES -DHAVE_OPENGLES3' Makefile.common
           grep -F 'glsym_es3.c' Makefile.common
@@ -60,12 +120,14 @@ jobs:
           rc=$?
           set -e
           cat /tmp/gles3-build.log
-          if grep -E '(^|[^[:alpha:]])(fatal error:|error:)' /tmp/gles3-build.log | grep -v 'collect2: error: ld returned' ; then
+          compile_errors=$(grep -E '(fatal error:|error:)' /tmp/gles3-build.log | grep -v 'collect2: error: ld returned' || true)
+          if [ -n "$compile_errors" ]; then
+            echo "$compile_errors" >&2
             echo 'GLES3 compile error detected.' >&2
             exit 1
           fi
           if [ "$rc" -ne 0 ]; then
-            echo 'Build reached the existing final-link failure; source compilation itself was clean.'
+            echo 'Source compilation was clean; build stopped at the repository existing final-link issue.'
           fi
 
       - name: Remove helper and push
