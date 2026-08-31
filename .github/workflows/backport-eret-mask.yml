@@ -28,14 +28,12 @@ jobs:
 
           path = Path('mupen64plus-core/src/device/r4300/new_dynarec/new_dynarec.c')
           text = path.read_text()
-          old = '''        for(int i=0;i<32;i++)
-            is64 = (((int)(state->regs[i]>>32)^((int)state->regs[i]>>31))!=0)<<i;'''
-          new = '''        for(int i=0;i<32;i++)
-            is64 |= (((int)(state->regs[i]>>32)^((int)state->regs[i]>>31))!=0)<<i;'''
+          old = 'is64 = (((int)(state->regs[i]>>32)^((int)state->regs[i]>>31))!=0)<<i;'
+          new = 'is64 |= (((int)(state->regs[i]>>32)^((int)state->regs[i]>>31))!=0)<<i;'
 
           count = text.count(old)
           if count != 1:
-              raise SystemExit(f'Expected exactly one ERET mask pattern, found {count}')
+              raise SystemExit(f'Expected exactly one ERET mask assignment, found {count}')
 
           path.write_text(text.replace(old, new, 1))
           PY
