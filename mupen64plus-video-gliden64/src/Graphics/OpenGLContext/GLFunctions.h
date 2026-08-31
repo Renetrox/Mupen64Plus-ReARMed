@@ -16,6 +16,12 @@
 #include <GL/glcorearb.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#elif defined(HAVE_OPENGLES3)
+/* Desktop <GL/gl.h> must stay out: it declares glEnable and friends as real
+ * functions, and glsmsym.h has already turned those names into macros.
+ * Pull GLES headers in before the glX -> g_glX aliases below. */
+#include <glsym/rglgen_headers.h>
+#include <GL/glcorearb.h>
 #elif defined(OS_MAC_OS_X)
 #include <OpenGL/OpenGL.h>
 #include <stddef.h>

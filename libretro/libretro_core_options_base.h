@@ -2354,7 +2354,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             {"True", NULL},
             { NULL, NULL },
         },
-#ifdef HAVE_OPENGLES
+#ifdef HAVE_OPENGLES2
         "False"
 #else
         "True"
@@ -2374,7 +2374,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         },
         "False"
     },
-#if !defined(VC) && !defined(HAVE_OPENGLES)
+#if !defined(VC) && !defined(HAVE_OPENGLES2)
     {
         CORE_NAME "-gliden64-EnableShadersStorage",
         "Cache GPU Shaders",

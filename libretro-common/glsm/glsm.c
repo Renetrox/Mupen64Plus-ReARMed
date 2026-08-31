@@ -2545,7 +2545,7 @@ void rglProgramBinary(GLuint program,
 #ifdef GLSM_DEBUG
    log_cb(RETRO_LOG_INFO, "glProgramBinary.\n");
 #endif
-#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES_3_1)
+#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && (defined(HAVE_OPENGLES3) || defined(HAVE_OPENGLES_3_1))
    glProgramBinary(program, binaryFormat, binary, length);
 #else
    printf("WARNING! Not implemented.\n");
