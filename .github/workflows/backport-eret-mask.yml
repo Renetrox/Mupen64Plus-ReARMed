@@ -19,7 +19,7 @@ jobs:
         with:
           ref: frameskip-modern
 
-      - name: Apply upstream ERET mask fix
+      - name: Apply and verify exact upstream ERET fix
         shell: bash
         run: |
           set -euo pipefail
@@ -31,23 +31,22 @@ jobs:
           old = 'is64 = (((int)(state->regs[i]>>32)^((int)state->regs[i]>>31))!=0)<<i;'
           new = 'is64 |= (((int)(state->regs[i]>>32)^((int)state->regs[i]>>31))!=0)<<i;'
 
-          count = text.count(old)
-          if count != 1:
-              raise SystemExit(f'Expected exactly one ERET mask assignment, found {count}')
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected exactly one old ERET assignment, found {text.count(old)}')
+          if text.count(new) != 0:
+              raise SystemExit(f'New ERET assignment already present unexpectedly ({text.count(new)})')
 
           path.write_text(text.replace(old, new, 1))
+          verified = path.read_text()
+          if old in verified or verified.count(new) != 1:
+              raise SystemExit('Post-patch ERET verification failed')
           PY
 
           git diff --check
-          grep -A3 -B2 'uint32_t is64 = 0;' mupen64plus-core/src/device/r4300/new_dynarec/new_dynarec.c
-
-      - name: Build core
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev
-          make -j2
+          expected=$'1\t1\tmupen64plus-core/src/device/r4300/new_dynarec/new_dynarec.c'
+          actual="$(git diff --numstat -- mupen64plus-core/src/device/r4300/new_dynarec/new_dynarec.c)"
+          test "$actual" = "$expected"
+          git diff -- mupen64plus-core/src/device/r4300/new_dynarec/new_dynarec.c
 
       - name: Commit verified backport and remove helper
         shell: bash
