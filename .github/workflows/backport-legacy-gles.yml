@@ -1,0 +1,46 @@
+name: Backport legacy GLES fixes
+
+on:
+  push:
+    branches:
+      - frameskip-modern
+    paths:
+      - .github/workflows/backport-legacy-gles.yml
+
+permissions:
+  contents: write
+
+jobs:
+  backport:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out frameskip-modern
+        uses: actions/checkout@v4
+        with:
+          ref: frameskip-modern
+          fetch-depth: 0
+
+      - name: Cherry-pick upstream legacy renderer GLES fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add parallel https://github.com/libretro/parallel-n64.git
+          git fetch parallel f3e27cbc035d56aa61825167e80d3d42d0cec683 05228dbd975233cf4581c90e4df2de5d497831d3 95ac18ec6507c762ca6fec1963b7144a128347cc
+          git cherry-pick -x f3e27cbc035d56aa61825167e80d3d42d0cec683
+          git cherry-pick -x 05228dbd975233cf4581c90e4df2de5d497831d3
+          git cherry-pick -x 95ac18ec6507c762ca6fec1963b7144a128347cc
+          git diff --check HEAD~3..HEAD
+          grep -F '#if defined(HAVE_OPENGLES) // Desktop GL fix' gles2rice/src/osal_opengl.h
+          grep -F '#if !defined(HAVE_OPENGLES) /* Desktop GL fix */' gles2n64/src/ShaderCombiner.c
+          grep -F '#if defined(HAVE_OPENGLES) // Desktop GL fix' glide2gl/src/Glitch64/glitch64_combiner.c
+
+      - name: Remove helper and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/backport-legacy-gles.yml
+          git add .github/workflows/backport-legacy-gles.yml
+          git commit -m 'ci: remove temporary legacy GLES backport helper'
+          git push origin HEAD:frameskip-modern
