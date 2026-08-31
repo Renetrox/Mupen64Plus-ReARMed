@@ -1,0 +1,44 @@
+name: Backport ARM32 dynarec fixes
+
+on:
+  push:
+    branches:
+      - frameskip-modern
+    paths:
+      - .github/workflows/backport-arm32-dynarec.yml
+
+permissions:
+  contents: write
+
+jobs:
+  backport:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out frameskip-modern
+        uses: actions/checkout@v4
+        with:
+          ref: frameskip-modern
+          fetch-depth: 0
+
+      - name: Cherry-pick upstream ARM32 fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add parallel https://github.com/libretro/parallel-n64.git
+          git fetch parallel c7099053da6e012a389f13c42fde3253d24ccdd5 68a5ea8cfd818c35a967fb3b542e880b2579eb45
+          git cherry-pick -x c7099053da6e012a389f13c42fde3253d24ccdd5
+          git cherry-pick -x 68a5ea8cfd818c35a967fb3b542e880b2579eb45
+          git diff --check HEAD~2..HEAD
+          grep -F 'bl     get_addr_ht' mupen64plus-core/src/device/r4300/new_dynarec/arm/linkage_arm.S
+          grep -F '#define mupencorestop (g_dev.r4300.new_dynarec_hot_state.stop)' mupen64plus-core/src/device/r4300/r4300.h
+
+      - name: Remove helper and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/backport-arm32-dynarec.yml
+          git add .github/workflows/backport-arm32-dynarec.yml
+          git commit -m 'ci: remove temporary ARM32 dynarec backport helper'
+          git push origin HEAD:frameskip-modern
