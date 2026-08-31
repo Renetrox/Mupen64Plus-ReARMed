@@ -11,169 +11,43 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-verify:
+  backport:
     runs-on: ubuntu-latest
     steps:
       - name: Check out frameskip-modern
         uses: actions/checkout@v4
         with:
           ref: frameskip-modern
+          fetch-depth: 0
 
-      - name: Apply final upstream RSP/Gauntlet state
+      - name: Cherry-pick upstream RSP series
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add parallel-upstream https://github.com/libretro/parallel-n64.git
+          git fetch --no-tags parallel-upstream 5f58ab259cd60fba58f4447fefe2ffc873134804
+          git cherry-pick -x 8f1efe5813583ddffd4221efa55735febe34719d
+          git cherry-pick -x b8fef17ae336ea2c1b1a56195f685cac3b482db9
+          git cherry-pick -x 57261d36b4a16b0a98bae452e6746fa9080bb011
+          git cherry-pick -x 5f58ab259cd60fba58f4447fefe2ffc873134804
 
-          def replace_once(path, old, new, label):
-              p = Path(path)
-              text = p.read_text()
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
-              p.write_text(text.replace(old, new, 1))
-
-          # Final state of the upstream 8f1efe -> b8fef1 -> 57261d -> 5f58ab series.
-          rsp_path = 'mupen64plus-core/src/device/rcp/rsp/rsp_core.c'
-          old_rsp = '''        /* Leave MI_INTR_SP asserted for the CPU's handler to find.
-         * Consuming it here scheduled the event and then removed the
-         * only evidence of where it came from, so a handler that
-         * dispatches on MI_INTR_REG - as libdragon's does - saw an
-         * interrupt with no source and ignored it.  Its rspq syncpoints
-         * are signalled exactly this way, so every wait on one timed
-         * out.  The incomplete-task branch above already keeps the bit
-         * for the same reason; the completing branch has to as well.
-         * The CPU clears it by writing SP_STATUS with SP_CLR_INTR,
-         * which update_sp_status already handles. */
-'''
-          new_rsp = '''        /* A completing task must deliver its break ONCE, at
-         * +sp_delay_time, with the status bits and the interrupt
-         * paired: the tail below clears TASKDONE|BROKE|HALT and the
-         * deferred event re-exposes them together with the raise.
-         * Consume the bit rsp_break set so the break does not ALSO
-         * deliver an early edge now: status-polling games acknowledge
-         * that early interrupt, find no status, and dismiss it, while
-         * schedulers that trust the interrupt count it twice --
-         * Gauntlet Legends' RSP scheduler pairs completion messages
-         * with in-flight tasks positionally, retired one task too many
-         * on the duplicate, popped an empty slot without a NULL check
-         * and parked its dispatcher in a blocking osSendMesg on a NULL
-         * queue: the scene-change deadlock. The same duplicate also
-         * deadlocked its cxd4 LLE fallback at the Midway logo, closing
-         * the GLideN64 path entirely, and produced Lego Racers' and
-         * Paperboy's random polygons (display lists reused mid-build).
-         * Only the break's own edge may be withdrawn, and only the
-         * deferred event can replay it: rsp_interrupt_event re-raises
-         * iff SP_STATUS_INTR_BREAK is set.  With INTR_BREAK clear the
-         * break raised nothing, so a pending bit here can only be a
-         * task-raised interrupt -- libdragon's rspq runs with
-         * INTR_BREAK off ("we don't need it"), raises syncpoints via
-         * SET_INTR mid-slice and then breaks idle in the same
-         * doRspCycles slice, landing exactly here.  Consuming that bit
-         * destroys the syncpoint (nothing replays it) and every
-         * rspq_syncpoint_wait times out; keep it asserted for the CPU,
-         * as the incomplete branch does.  With INTR_BREAK set, a
-         * task-raised edge in the same slice as the break coalesces
-         * into the single deferred delivery -- the CPU could not have
-         * run between them, so the two edges were never separable
-         * here.
-         *
-         * Withdrawing the edge must also withdraw its delivery
-         * machinery: the raise queued a CHECK_INT (count = now, queue
-         * front) whose handler takes the interrupt exception
-         * unconditionally.  Clearing the cause line alone leaves that
-         * node to fire as a source-less exception the moment the CPU
-         * resumes -- once per completing task.  Cancel it when nothing
-         * else is pending on the line; if another MI source is still
-         * pending, clear_rcp_interrupt has re-asserted IP2 and the
-         * node stays meaningful for that source. */
-        if (sp->regs[SP_STATUS_REG] & SP_STATUS_INTR_BREAK)
-        {
-            clear_rcp_interrupt(sp->mi, MI_INTR_SP);
-            if ((sp->mi->regs[MI_INTR_REG] & sp->mi->regs[MI_INTR_MASK_REG]) == 0)
-                remove_event(&sp->mi->r4300->cp0.q, CHECK_INT);
-        }
-'''
-          replace_once(rsp_path, old_rsp, new_rsp, 'rsp_core completing-break fix')
-
-          hle_path = 'mupen64plus-rsp-hle/src/hle.c'
-          old_hle_launch = '''    if (!resume) {
-        /* the microcode clears SIG1 and SIG2 at task start */
-        *hle->sp_status &= ~(SP_STATUS_SIG1 | SP_STATUS_TASKDONE);
-    }
-'''
-          new_hle_launch = '''    if (!l_streaming_gfx_running || (*dmem_u32(hle, TASK_FLAGS) & 1)) {
-        /* every real launch of the task runs the microcode's boot, which
-         * clears SIG1 and SIG2 -- the fresh start AND the relaunch of a
-         * yielded task. Only the plain re-dispatch of a suspended walk
-         * (l_streaming_gfx_running set, no launch in between) keeps the
-         * signals untouched. Without the clear on the yielded relaunch,
-         * SIG1 survives the yield, and once the resumed task completes,
-         * osSpTaskYielded reads the stale SIG1 and the game files the
-         * completion as another yield. */
-        *hle->sp_status &= ~(SP_STATUS_SIG1 | SP_STATUS_TASKDONE);
-    }
-'''
-          replace_once(hle_path, old_hle_launch, new_hle_launch, 'streaming HLE launch signals')
-
-          old_hle_yield = '''        /* the CPU requested a yield: answer with the microcode's yield
-         * status (SET_SIG1|SET_SIG2, break). The walker state stays
-         * saved; the relaunch arrives with OS_TASK_YIELDED set. */
-'''
-          new_hle_yield = '''        /* the CPU requested a yield: answer with the microcode's yield
-         * status (SET_SIG1|SET_SIG2, break). SIG0 stays set -- the
-         * game's osSpTaskYielded still needs to see the request, and
-         * the CPU clears it itself on the relaunch (osSpTaskLoad). The
-         * walker state stays saved; the relaunch arrives with
-         * OS_TASK_YIELDED set. */
-'''
-          replace_once(hle_path, old_hle_yield, new_hle_yield, 'streaming HLE yield protocol')
-
-          libretro_path = 'libretro/libretro.c'
-          old_route = '''   if (
-          (!strcmp((const char*)ROM_HEADER.Name, "GAUNTLET LEGENDS"))
-      )
-   {
-      rsp_plugin = RSP_CXD4;
-   }
-'''
-          new_route = '''   /* No hardcoded RSP routing for Gauntlet Legends: rsp-hle detects its
-    * streaming microcode and serves it (angrylion), or declares itself
-    * unable and the task falls back to the LLE plugin (GLideN64). The old
-    * RSP_CXD4 override predated the streaming support and forced the one
-    * path that cannot work under either renderer. */
-'''
-          replace_once(libretro_path, old_route, new_route, 'Gauntlet RSP autoselect')
-          PY
-
-          git diff --check
-
-          expected=$'libretro/libretro.c\nmupen64plus-core/src/device/rcp/rsp/rsp_core.c\nmupen64plus-rsp-hle/src/hle.c'
-          actual="$(git diff --name-only | sort)"
-          test "$actual" = "$expected"
-
+          git diff --check HEAD~4 HEAD
           grep -F 'clear_rcp_interrupt(sp->mi, MI_INTR_SP);' mupen64plus-core/src/device/rcp/rsp/rsp_core.c
           grep -F 'remove_event(&sp->mi->r4300->cp0.q, CHECK_INT);' mupen64plus-core/src/device/rcp/rsp/rsp_core.c
           grep -F 'if (!l_streaming_gfx_running || (*dmem_u32(hle, TASK_FLAGS) & 1))' mupen64plus-rsp-hle/src/hle.c
           if grep -Fq '(!strcmp((const char*)ROM_HEADER.Name, "GAUNTLET LEGENDS"))' libretro/libretro.c; then
-              echo 'Gauntlet hardcoded RSP route still present' >&2
-              exit 1
+            echo 'Gauntlet hardcoded CXD4 route still present' >&2
+            exit 1
           fi
+          git log --oneline -4
 
-          git diff --stat
-          git diff -- libretro/libretro.c mupen64plus-core/src/device/rcp/rsp/rsp_core.c mupen64plus-rsp-hle/src/hle.c
-
-      - name: Commit verified backport and remove helper
+      - name: Remove helper and push
         shell: bash
         run: |
           set -euo pipefail
           rm .github/workflows/backport-rsp-gauntlet.yml
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add libretro/libretro.c \
-                  mupen64plus-core/src/device/rcp/rsp/rsp_core.c \
-                  mupen64plus-rsp-hle/src/hle.c \
-                  .github/workflows/backport-rsp-gauntlet.yml
-          git commit -m 'rsp: backport Gauntlet completion and streaming fixes' -m 'Backport the final state of libretro/parallel-n64 8f1efe5, b8fef17, 57261d3 and 5f58ab2. Deliver completing SP breaks once without losing task-raised interrupts, clear streaming yield signals on real relaunches, cancel stale CHECK_INT delivery, and remove the obsolete Gauntlet CXD4 autoselect override.'
+          git add .github/workflows/backport-rsp-gauntlet.yml
+          git commit -m 'ci: remove temporary RSP backport helper'
           git push origin HEAD:frameskip-modern
