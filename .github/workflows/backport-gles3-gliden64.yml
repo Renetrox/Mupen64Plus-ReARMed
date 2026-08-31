@@ -71,10 +71,13 @@ jobs:
               '#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES_3_1)\n   glProgramBinary(program, binaryFormat, binary, length);',
               '#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && (defined(HAVE_OPENGLES3) || defined(HAVE_OPENGLES_3_1))\n   glProgramBinary(program, binaryFormat, binary, length);')
 
+          # ReARMed still carries the duplicate-prefix key fixed upstream by
+          # a91f51e. Fix the key and expose it on GLES3 (beed083b) in one block.
           replace_exact(
               'libretro/libretro.c',
-              '#if !defined(VC) && !defined(HAVE_OPENGLES)\n   var.key = CORE_NAME "-gliden64-EnableShadersStorage";',
-              '#if !defined(VC) && !defined(HAVE_OPENGLES2)\n   var.key = CORE_NAME "-gliden64-EnableShadersStorage";')
+              '''   var.key = CORE_NAME "-gliden64-gliden64-EnableShadersStorage";\n   var.value = NULL;\n   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)\n   {\n      EnableShadersStorage = !strcmp(var.value, "False") ? 0 : 1;\n   }\n''',
+              '''#if !defined(VC) && !defined(HAVE_OPENGLES2)\n   var.key = CORE_NAME "-gliden64-EnableShadersStorage";\n   var.value = NULL;\n   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)\n   {\n      EnableShadersStorage = !strcmp(var.value, "False") ? 0 : 1;\n   }\n#endif\n''')
+
           replace_exact(
               'libretro/libretro_core_options_base.h',
               '#if !defined(VC) && !defined(HAVE_OPENGLES)\n    {\n        CORE_NAME "-gliden64-EnableShadersStorage",',
@@ -89,13 +92,13 @@ jobs:
             libretro/libretro_core_options_base.h \
             mupen64plus-video-gliden64/src/Graphics/OpenGLContext/GLFunctions.h
           git commit -m 'gliden64: add GLES3 build path for SBC targets' \
-            -m 'Backport current parallel-n64 GLES3 enablement (6d5fa8b, b9fcff1, c7189c5, fd775343, beed083b) onto ReARMed while preserving the GLES2 path and the fork-specific option wrapper.'
+            -m 'Backport current parallel-n64 GLES3 enablement and shader-cache fixes (6d5fa8b, b9fcff1, c7189c5, a91f51e, fd775343, beed083b) onto ReARMed while preserving the GLES2 path and fork-specific option wrapper.'
 
           grep -F 'ifeq ($(GLES3),1)' Makefile.common
           grep -F -- '-DHAVE_OPENGLES -DHAVE_OPENGLES3' Makefile.common
           grep -F 'glsym_es3.c' Makefile.common
           grep -F '#elif defined(HAVE_OPENGLES3)' mupen64plus-video-gliden64/src/Graphics/OpenGLContext/GLFunctions.h
-          grep -F '#ifdef HAVE_OPENGLES2' libretro/libretro_core_options_base.h
+          grep -F 'CORE_NAME "-gliden64-EnableShadersStorage"' libretro/libretro.c
           grep -F 'defined(HAVE_OPENGLES3) || defined(HAVE_OPENGLES_3_1)' libretro-common/glsm/glsm.c
 
       - name: Probe GLES3 build
