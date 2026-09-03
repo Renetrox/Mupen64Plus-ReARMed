@@ -3207,7 +3207,7 @@ static void glsm_exit(void)
     * glcore with no per-frame bind. Restrict the live cycle to glide64 until the
     * gln64/rice hang is root-caused; the other GL renderers keep their prior
     * (no per-frame bind) behaviour, which is their known-good state. */
-   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE)
+   if (gfx_plugin != GFX_GLIDE64)
       return;
    glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
 #endif
@@ -3229,7 +3229,7 @@ static void glsm_enter(void)
    /* See glsm_exit(): the live per-frame bind is restricted to glide64, the only
     * renderer it is validated to help on the gl driver. gln64 and rice hang with
     * it live, so they keep their prior no-per-frame-bind behaviour here. */
-   if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE)
+   if (gfx_plugin != GFX_GLIDE64)
       return;
    glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
 #endif
