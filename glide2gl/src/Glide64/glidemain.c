@@ -625,7 +625,15 @@ int retro_return(bool a);
 
 void glide64UpdateScreen (void)
 {
+   static unsigned swap_diag_vi_count = 0;
    bool forced_update = false;
+
+   if (log_cb && swap_diag_vi_count < 300)
+      log_cb(RETRO_LOG_INFO,
+            "[Glide64 swapdiag VI %u] mode=%d forced=%d update=%d "
+            "vi_old=%08x vi_now=%08x SwapOK=%d\n",
+            swap_diag_vi_count++, settings.swapmode, forced_update,
+            rdp.updatescreen, rdp.vi_org_reg, *gfx_info.VI_ORIGIN_REG, SwapOK);
 
    /* Official Glide64mk2 frameskip updates its scheduler on each VI and
     * applies the decision to the following graphics display list. */
