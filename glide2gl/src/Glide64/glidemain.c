@@ -629,7 +629,7 @@ void glide64UpdateScreen (void)
    bool forced_update = false;
 
    if (log_cb && swap_diag_vi_count < 300)
-      log_cb(RETRO_LOG_INFO,
+      log_cb(RETRO_LOG_WARN,
             "[Glide64 swapdiag VI %u] mode=%d forced=%d update=%d "
             "vi_old=%08x vi_now=%08x SwapOK=%d\n",
             swap_diag_vi_count++, settings.swapmode, forced_update,
