@@ -1561,7 +1561,7 @@ static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
          static unsigned swap_diag_count = 0;
          if (log_cb && swap_diag_count < 600)
          {
-            log_cb(RETRO_LOG_INFO,
+            log_cb(RETRO_LOG_WARN,
                   "[Glide64 swapdiag %u] mode=%d vi_old=%08x vi_now=%08x "
                   "zb=%08x ocimg=%08x cimg=%08x SwapOK=%d viSwapOK=%d update=%d swap=%d\n",
                   swap_diag_count++, settings.swapmode, rdp.vi_org_reg,
