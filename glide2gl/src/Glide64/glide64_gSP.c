@@ -575,7 +575,7 @@ void glide64gSPPopMatrixN(uint32_t param, uint32_t num )
    if (gSP.matrix.modelViewi > num - 1)
       gSP.matrix.modelViewi -= num;
    CopyMatrix(rdp.model, gSP.matrix.modelView[gSP.matrix.modelViewi]);
-   g_gdp.flags |= UPDATE_MULT_MAT;
+   g_gdp.flags |= UPDATE_MULT_MAT | UPDATE_LIGHTS;
 }
 
 void glide64gSPPopMatrix(uint32_t param)
@@ -587,7 +587,7 @@ void glide64gSPPopMatrix(uint32_t param)
          {
             gSP.matrix.modelViewi--;
             CopyMatrix(rdp.model, gSP.matrix.modelView[gSP.matrix.modelViewi]);
-            g_gdp.flags |= UPDATE_MULT_MAT;
+            g_gdp.flags |= UPDATE_MULT_MAT | UPDATE_LIGHTS;
          }
          break;
       case 1: // projection, can't
