@@ -225,6 +225,7 @@ static unsigned retro_filtering     = 0;
 static unsigned retro_dithering     = 0;
 static bool     reinit_screen       = false;
 static bool     first_context_reset = false;
+static unsigned gliden64_bind_trace_count = 0;
 static bool     context_setup_first_init = false;
 
 bool frame_dupe                     = false;
@@ -1125,11 +1126,20 @@ static void emu_step_initialize(void)
    CoreDoCommand(M64CMD_EXECUTE, 0, NULL);
 }
 
+/* A/B build switch. Set to 0 to retain the original first-reset sequence. */
+#ifndef REARMED_GLIDEN64_SKIP_FIRST_REOPEN
+#define REARMED_GLIDEN64_SKIP_FIRST_REOPEN 1
+#endif
+
 extern void gliden64RomOpen();
 extern void gliden64RomClosed();
 static void EmuThreadInit(void);
 void reinit_gfx_plugin(void)
 {
+    const bool initial_context_reset = first_context_reset;
+    if (gfx_plugin == GFX_GLIDEN64 && log_cb)
+       log_cb(RETRO_LOG_INFO, "[GLideN64 trace] reinit_gfx_plugin initial=%d\n", initial_context_reset ? 1 : 0);
+
     if(first_context_reset)
     {
         first_context_reset = false;
@@ -1153,8 +1163,23 @@ void reinit_gfx_plugin(void)
           break;
        case GFX_GLIDEN64:
 #ifdef HAVE_GLIDEN64
-          gliden64RomClosed();
-          gliden64RomOpen();
+          /* main_run() has already called gfx.romOpen() in EmuThreadInit().
+           * On the first context reset, keep that initial open rather than
+           * immediately closing and reopening the same plugin. */
+          if (initial_context_reset && REARMED_GLIDEN64_SKIP_FIRST_REOPEN)
+          {
+             if (log_cb)
+                log_cb(RETRO_LOG_INFO, "[GLideN64 trace] first reset: retaining main_run RomOpen\n");
+          }
+          else
+          {
+             if (log_cb)
+                log_cb(RETRO_LOG_INFO, "[GLideN64 trace] before RomClosed/RomOpen\n");
+             gliden64RomClosed();
+             gliden64RomOpen();
+             if (log_cb)
+                log_cb(RETRO_LOG_INFO, "[GLideN64 trace] after RomClosed/RomOpen\n");
+          }
 #endif
           break;
        case GFX_RICE:
@@ -1380,7 +1405,11 @@ static void context_reset(void)
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
          {
             printf("context_reset.\n");
+            if (gfx_plugin == GFX_GLIDEN64 && log_cb)
+               log_cb(RETRO_LOG_INFO, "[GLideN64 trace] before GLSM context reset\n");
             glsm_ctl(GLSM_CTL_STATE_CONTEXT_RESET, NULL);
+            if (gfx_plugin == GFX_GLIDEN64 && log_cb)
+               log_cb(RETRO_LOG_INFO, "[GLideN64 trace] after GLSM context reset\n");
 
             if (!context_setup_first_init)
             {
@@ -1483,6 +1512,8 @@ static bool retro_init_gl(bool core)
 
    params.framebuffer_lock      = context_framebuffer_lock;
 
+   if (gfx_plugin == GFX_GLIDEN64 && log_cb)
+      log_cb(RETRO_LOG_INFO, "[GLideN64 trace] requesting HW context: core_hint=%d fb=%d (GLES builds ignore core_hint)\n", core ? 1 : 0, EnableFBEmulation ? 1 : 0);
    if (!glsm_ctl(GLSM_CTL_STATE_CONTEXT_INIT, &params))
    {
       if (log_cb)
@@ -1490,6 +1521,8 @@ static bool retro_init_gl(bool core)
       return false;
    }
 
+   if (gfx_plugin == GFX_GLIDEN64 && log_cb)
+      log_cb(RETRO_LOG_INFO, "[GLideN64 trace] HW render request accepted (context not yet created)\n");
    return true;
 #else
    return false;
@@ -2946,6 +2979,7 @@ bool retro_load_game(const struct retro_game_info *game)
 {
    format_saved_memory();
    retro_frameskip_reset();
+   gliden64_bind_trace_count = 0;
 
    update_variables(true);
    initial_boot = false;
@@ -3233,7 +3267,11 @@ static void glsm_enter(void)
     * renderers while the emulation slice runs, including GLideN64. */
    if (gfx_plugin != GFX_GLIDE64 && gfx_plugin != GFX_GLN64 && gfx_plugin != GFX_RICE && gfx_plugin != GFX_GLIDEN64)
       return;
+   if (gfx_plugin == GFX_GLIDEN64 && gliden64_bind_trace_count == 0 && log_cb)
+      log_cb(RETRO_LOG_INFO, "[GLideN64 trace] before first GLSM bind\n");
    glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
+   if (gfx_plugin == GFX_GLIDEN64 && gliden64_bind_trace_count++ == 0 && log_cb)
+      log_cb(RETRO_LOG_INFO, "[GLideN64 trace] after first GLSM bind\n");
 #endif
 }
 #endif
