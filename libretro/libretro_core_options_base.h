@@ -1608,22 +1608,40 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         NULL,
         NULL,
         {
-#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-            { "gliden64", NULL },
+#if (defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)) && defined(HAVE_GLIDE64)
             { "glide64", NULL },
-            { "gln64", NULL },
+#endif
+#if (defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)) && defined(HAVE_RICE)
             { "rice", NULL },
 #endif
+#if (defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)) && defined(HAVE_GLN64)
+            { "gln64", NULL },
+#endif
+#if (defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)) && defined(HAVE_GLIDEN64)
+            { "gliden64", NULL },
+#endif
+#ifdef HAVE_THR_AL
             { "angrylion", NULL },
+#endif
 #ifdef HAVE_PARALLEL
             { "parallel", NULL },
 #endif
             { NULL, NULL },
         },
-#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
+#if (defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)) && defined(HAVE_GLIDE64)
+        "glide64"
+#elif (defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)) && defined(HAVE_RICE)
+        "rice"
+#elif (defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)) && defined(HAVE_GLN64)
+        "gln64"
+#elif (defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)) && defined(HAVE_GLIDEN64)
         "gliden64"
-#else
+#elif defined(HAVE_THR_AL)
         "angrylion"
+#elif defined(HAVE_PARALLEL)
+        "parallel"
+#else
+#error "No supported graphics plugin is enabled for this build"
 #endif
     },
     {
