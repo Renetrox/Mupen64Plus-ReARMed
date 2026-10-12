@@ -2988,11 +2988,34 @@ bool retro_load_game(const struct retro_game_info *game)
 
       if (!vulkan_inited)
       {
-         /* A failed GL request must not be treated as an initialized
-          * context. In particular, never silently run Angrylion as a
-          * substitute for a missing graphics API. */
-         if (!retro_init_gl(/*core*/ (gfx_plugin == GFX_GLIDEN64)
-                                      || (gfx_plugin == GFX_PARALLEL)))
+         /* Select the GL fallback before requesting a context. GLideN64
+          * requests a newer core profile than Glide64, Rice or glN64;
+          * asking for that profile first can reject compatible GLES/GL
+          * hardware even though the eventual fallback is lightweight. */
+         if (gfx_plugin == GFX_PARALLEL)
+         {
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
+#ifdef HAVE_GLIDE64
+            gfx_plugin = GFX_GLIDE64;
+#elif defined(HAVE_RICE)
+            gfx_plugin = GFX_RICE;
+#elif defined(HAVE_GLN64)
+            gfx_plugin = GFX_GLN64;
+#elif defined(HAVE_GLIDEN64)
+            gfx_plugin = GFX_GLIDEN64;
+#else
+            if (log_cb)
+               log_cb(RETRO_LOG_ERROR, "Mupen64Plus-ReARMed: no GL fallback renderer was compiled.\n");
+            return false;
+#endif
+#else
+            if (log_cb)
+               log_cb(RETRO_LOG_ERROR, "Mupen64Plus-ReARMed: Vulkan unavailable and OpenGL is disabled.\n");
+            return false;
+#endif
+         }
+
+         if (!retro_init_gl(/*core*/ (gfx_plugin == GFX_GLIDEN64)))
          {
             if (log_cb)
                log_cb(RETRO_LOG_ERROR, "Mupen64Plus-ReARMed: no usable OpenGL/Vulkan context for the selected graphics plugin.\n");
@@ -3004,30 +3027,6 @@ bool retro_load_game(const struct retro_game_info *game)
 
    if (gl_inited)
    {
-      // we are not vulkan, defer to opengl - it is assumed it always exists, otherwise fail
-      switch (gfx_plugin)
-      {
-         case GFX_PARALLEL:
-            /* If Vulkan is unavailable, prefer the fast legacy GL path
-             * rather than unexpectedly choosing GLideN64. */
-#ifdef HAVE_GLIDE64
-            gfx_plugin = GFX_GLIDE64;
-#elif defined(HAVE_RICE)
-            gfx_plugin = GFX_RICE;
-#elif defined(HAVE_GLN64)
-            gfx_plugin = GFX_GLN64;
-#elif defined(HAVE_GLIDEN64)
-            gfx_plugin = GFX_GLIDEN64;
-#else
-            if (log_cb)
-               log_cb(RETRO_LOG_ERROR, "Mupen64Plus-ReARMed: no OpenGL graphics plugin was compiled.\n");
-            return false;
-#endif
-            break;
-         default:
-            break;
-      }
-
       switch (rsp_plugin)
       {
          case RSP_PARALLEL:
