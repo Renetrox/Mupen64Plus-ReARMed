@@ -534,6 +534,9 @@ static void core_settings_autoselect_gfx_plugin(void)
    if (gfx_var.value && strcmp(gfx_var.value, "auto") != 0)
       return;
 
+   /* For automatic mode, choose a compiled hardware renderer first.
+    * Do not silently select the CPU renderer before the GL context has
+    * been created: during retro_load_game() gl_inited is still false. */
 #if defined(HAVE_PARALLEL)
    /* The E90 sprite overlay is composited by the software and GL renderers
     * only, so an E90 board would lose its playfield under parallel-RDP. */
@@ -544,12 +547,20 @@ static void core_settings_autoselect_gfx_plugin(void)
    }
 #endif
 
-#if (defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)) && defined(HAVE_GLIDE64)
-   if (gl_inited)
-   {
-      gfx_plugin = GFX_GLIDE64;
-      return;
-   }
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
+#ifdef HAVE_GLIDE64
+   gfx_plugin = GFX_GLIDE64;
+   return;
+#elif defined(HAVE_RICE)
+   gfx_plugin = GFX_RICE;
+   return;
+#elif defined(HAVE_GLN64)
+   gfx_plugin = GFX_GLN64;
+   return;
+#elif defined(HAVE_GLIDEN64)
+   gfx_plugin = GFX_GLIDEN64;
+   return;
+#endif
 #endif
 
 #ifdef HAVE_THR_AL
@@ -1108,7 +1119,17 @@ static void emu_step_initialize(void)
       case GFX_RICE:      current_rdp_type = RDP_PLUGIN_RICE;      break;
       case GFX_GLN64:     current_rdp_type = RDP_PLUGIN_GLN64;     break;
       case GFX_GLIDE64:   current_rdp_type = RDP_PLUGIN_GLIDE64;   break;
+#ifdef HAVE_GLIDE64
+      default:            current_rdp_type = RDP_PLUGIN_GLIDE64;   break;
+#elif defined(HAVE_RICE)
+      default:            current_rdp_type = RDP_PLUGIN_RICE;      break;
+#elif defined(HAVE_GLN64)
+      default:            current_rdp_type = RDP_PLUGIN_GLN64;     break;
+#elif defined(HAVE_GLIDEN64)
       default:            current_rdp_type = RDP_PLUGIN_GLIDEN64;  break;
+#else
+      default:            current_rdp_type = RDP_PLUGIN_ANGRYLION; break;
+#endif
    }
    switch (rsp_plugin)
    {
@@ -2035,30 +2056,30 @@ void update_variables(bool startup)
       if (var.value)
       {
 #if defined(HAVE_GLN64) || defined(HAVE_GLIDEN64) || defined(HAVE_RICE) || defined(HAVE_GLIDE64) || defined(HAVE_THR_AL) || defined(HAVE_PARALLEL)
-         // TODO: This logic seems wrong?
          if (!strcmp(var.value, "auto"))
+            core_settings_autoselect_gfx_plugin();
 #ifdef HAVE_GLN64
-         if (!strcmp(var.value, "gln64"))
+         else if (!strcmp(var.value, "gln64"))
             gfx_plugin = GFX_GLN64;
 #endif
 #ifdef HAVE_GLIDEN64
-         if (!strcmp(var.value, "gliden64"))
+         else if (!strcmp(var.value, "gliden64"))
             gfx_plugin = GFX_GLIDEN64;
 #endif
 #ifdef HAVE_RICE
-         if (!strcmp(var.value, "rice"))
+         else if (!strcmp(var.value, "rice"))
             gfx_plugin = GFX_RICE;
 #endif
 #ifdef HAVE_GLIDE64
-         if(!strcmp(var.value, "glide64"))
+         else if (!strcmp(var.value, "glide64"))
             gfx_plugin = GFX_GLIDE64;
 #endif
 #ifdef HAVE_THR_AL
-         if(!strcmp(var.value, "angrylion"))
+         else if (!strcmp(var.value, "angrylion"))
             gfx_plugin = GFX_ANGRYLION;
 #endif
 #ifdef HAVE_PARALLEL
-         if(!strcmp(var.value, "parallel"))
+         else if (!strcmp(var.value, "parallel"))
             gfx_plugin = GFX_PARALLEL;
 #endif
 #endif
@@ -2967,24 +2988,45 @@ bool retro_load_game(const struct retro_game_info *game)
 
       if (!vulkan_inited)
       {
-         retro_init_gl(/*core*/ (gfx_plugin == GFX_GLIDEN64)
-                             || (gfx_plugin == GFX_PARALLEL));
+         /* Select the GL fallback before requesting a context. GLideN64
+          * requests a newer core profile than Glide64, Rice or glN64;
+          * asking for that profile first can reject compatible GLES/GL
+          * hardware even though the eventual fallback is lightweight. */
+         if (gfx_plugin == GFX_PARALLEL)
+         {
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
+#ifdef HAVE_GLIDE64
+            gfx_plugin = GFX_GLIDE64;
+#elif defined(HAVE_RICE)
+            gfx_plugin = GFX_RICE;
+#elif defined(HAVE_GLN64)
+            gfx_plugin = GFX_GLN64;
+#elif defined(HAVE_GLIDEN64)
+            gfx_plugin = GFX_GLIDEN64;
+#else
+            if (log_cb)
+               log_cb(RETRO_LOG_ERROR, "Mupen64Plus-ReARMed: no GL fallback renderer was compiled.\n");
+            return false;
+#endif
+#else
+            if (log_cb)
+               log_cb(RETRO_LOG_ERROR, "Mupen64Plus-ReARMed: Vulkan unavailable and OpenGL is disabled.\n");
+            return false;
+#endif
+         }
+
+         if (!retro_init_gl(/*core*/ (gfx_plugin == GFX_GLIDEN64)))
+         {
+            if (log_cb)
+               log_cb(RETRO_LOG_ERROR, "Mupen64Plus-ReARMed: no usable OpenGL/Vulkan context for the selected graphics plugin.\n");
+            return false;
+         }
          gl_inited = true;
       }
    }
 
    if (gl_inited)
    {
-      // we are not vulkan, defer to opengl - it is assumed it always exists, otherwise fail
-      switch (gfx_plugin)
-      {
-         case GFX_PARALLEL:
-            gfx_plugin = GFX_GLIDEN64;
-            break;
-         default:
-            break;
-      }
-
       switch (rsp_plugin)
       {
          case RSP_PARALLEL:

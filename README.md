@@ -77,6 +77,18 @@ ndk-build -j8 USE_SSE2NEON=1 APP_ABI=armeabi-v7a-hard
 ndk-build APP_ABI=arm64-v8a
 ```
 
+## Renderer selection and RetroPie
+
+On OpenGL/OpenGL ES builds with Glide64 compiled, **Glide64/Glide64mk2 is the default graphics plugin**. Rice and glN64 remain available as lightweight alternatives; GLideN64 stays selectable on hardware and builds that support it. Angrylion is a CPU software renderer, not a Vulkan implementation. ParaLLEl-RDP requires Vulkan.
+
+The shared core options intentionally retain the historical `parallel-n64-*` keys for compatibility. An existing RetroArch core/game override such as `parallel-n64-gfxplugin = "gliden64"` takes precedence over the new default. To switch a previous installation, set `parallel-n64-gfxplugin = "glide64"` in RetroArch Core Options and save the override.
+
+The libretro build output is now `mupen64plus_rearmed_libretro.so`. It is a distinct core; installing it should **not** overwrite `parallel_n64_libretro.so`. Existing frontend configuration that points to that old filename needs to be updated to the new file (or selected via RetroPie's emulator list).
+
+For RetroPie, use the dedicated `lr-mupen64plus-rearmed` module in [Renetrox/RetroPie-Extra](https://github.com/Renetrox/RetroPie-Extra). This is separate from the standalone `mupen64plus-frameskip` module. It registers an additional N64 emulator without changing the existing default.
+
+When Vulkan is unavailable for an explicitly selected ParaLLEl-RDP configuration, the core tries a compiled legacy GL renderer first; if neither usable Vulkan nor OpenGL is available, loading fails with an error instead of pretending hardware initialization succeeded. No software renderer is substituted silently.
+
 ## Acknowledgements
 
 Mupen64Plus-ReARMed stands on the work of the Mupen64Plus, libretro, Mupen64Plus AE/FZ, renderer-plugin and emulation communities. Their code and history make this restoration possible.
