@@ -574,6 +574,7 @@ unsigned libretro_get_gfx_plugin(void)
 }
 
 static void core_settings_autoselect_rsp_plugin(void);
+static bool cxd4_hle_video;
 
 static void core_settings_set_defaults(void)
 {
@@ -634,6 +635,7 @@ static void core_settings_set_defaults(void)
 
    /* Load RSP plugin core option */
 
+   cxd4_hle_video = rsp_var.value && !strcmp(rsp_var.value, "cxd4-hle");
    if (rsp_var.value)
    {
       if (rsp_var.value && !strcmp(rsp_var.value, "auto"))
@@ -644,7 +646,7 @@ static void core_settings_set_defaults(void)
        * is no longer OpenGL-only and is never overridden under Vulkan. */
       if (rsp_var.value && !strcmp(rsp_var.value, "hle"))
          rsp_plugin = RSP_HLE;
-      if (rsp_var.value && !strcmp(rsp_var.value, "cxd4"))
+      if (cxd4_hle_video || !strcmp(rsp_var.value, "cxd4"))
          rsp_plugin = RSP_CXD4;
       if (rsp_var.value && !strcmp(rsp_var.value, "parallel"))
          rsp_plugin = RSP_PARALLEL;
@@ -1139,6 +1141,18 @@ static void emu_step_initialize(void)
       default:           current_rsp_type = RSP_PLUGIN_HLE;      break;
    }
    plugin_connect_all();
+
+#ifdef HAVE_LLE
+   /* CXD4 clears its own configuration in InitiateRSP. Apply this after
+    * connecting the plugins, once per content load. */
+   if (current_rsp_type == RSP_PLUGIN_CXD4)
+   {
+      cxd4SetHleVideo(cxd4_hle_video);
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "CXD4 graphics: %s\n", cxd4_hle_video ?
+               "display lists forwarded to renderer (HLE)" : "microcode interpreted by CXD4 (LLE)");
+   }
+#endif
 
    if (log_cb)
       log_cb(RETRO_LOG_INFO, "EmuThread: M64CMD_EXECUTE.\n");
@@ -2209,23 +2223,8 @@ void update_variables(bool startup)
 #endif
 
 
-   /* Whether to translate the GFX task to HLE rather than running the LLE
-    * microcode is, in general, the user's choice via the RSP plugin option.
-    * Historically the core force-enabled HLE GFX whenever the active video
-    * plugin was not the one paired with the build's native LLE path
-    * (angrylion for the threaded software build, parallel for the Vulkan
-    * build). That silently overrode an explicit "cxd4" selection, making a
-    * requested LLE run secretly execute the HLE emitter. Only apply that
-    * fallback when the RSP plugin is left on "auto"; an explicit choice is
-    * honoured as-is.
-    *
-    * This decision is latched at load (startup): the live RSP plugin is
-    * connected once, in emu_step_initialize(), and is never reconnected on
-    * a mid-run option change. Re-deriving CFG_HLE_GFX from a changed
-    * -rspplugin while the old RSP plugin keeps running desynced the GFX
-    * path from the live RSP and left parallel-rsp spinning at close-content
-    * (its DoRspCycles loop never reaching SP_STATUS_HALT). Honour the RSP
-    * plugin choice on the next content load instead. */
+   /* Preserve the legacy value exposed by ConfigGetParamBool in auto mode.
+    * CXD4 uses its own configuration, applied in emu_step_initialize(). */
    if (startup)
    {
       CFG_HLE_GFX = 0;

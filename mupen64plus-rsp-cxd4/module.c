@@ -60,6 +60,11 @@ NOINLINE void update_conf(const char* source)
     memset(conf, 0, sizeof(conf));
 }
 
+void cxd4SetHleVideo(int enabled)
+{
+    CFG_HLE_GFX = enabled != 0;
+}
+
 extern void DebugMessage(int level, const char *message, ...);
 
 EXPORT u32 CALL API_PREFIX(DoRspCycles)(u32 cycles)

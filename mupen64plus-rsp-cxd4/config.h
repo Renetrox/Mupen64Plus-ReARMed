@@ -15,6 +15,7 @@
 #define _CXD4_CONFIG_H
 
 extern unsigned char rsp_conf[32];
+void cxd4SetHleVideo(int enabled);
 
 #define MINIMUM_MESSAGE_PRIORITY    1
 #define EXTERN_COMMAND_LIST_GBI

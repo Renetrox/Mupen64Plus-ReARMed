@@ -1648,7 +1648,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         CORE_NAME "-rspplugin",
         "RSP Plugin",
         NULL,
-        "RSP Plugin",
+        "Select the RSP implementation. CXD4 + HLE graphics sends graphics display lists to the video plugin, like DisplayListToGraphicsPlugin in Mupen64Plus. Plain CXD4 executes the graphics microcode itself. Restart content after changing.",
         NULL,
         NULL,
         {
@@ -1657,6 +1657,9 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { "hle", NULL },
 #endif
             { "cxd4", NULL },
+#ifdef HAVE_LLE
+            { "cxd4-hle", "CXD4 + HLE graphics" },
+#endif
 #ifdef HAVE_PARALLEL_RSP
             { "parallel", NULL },
 #endif
