@@ -52,11 +52,15 @@ static void uc1_vertex(uint32_t w0, uint32_t w1)
 
 static void uc1_tri1(uint32_t w0, uint32_t w1)
 {
+   if (hexen_trace.enabled)
+      hexen_trace.f3dex_triangles++;
    glide64gSP1Triangle( _SHIFTR( w1, 17, 7 ), _SHIFTR( w1, 9, 7 ), _SHIFTR( w1, 1, 7 ), 0 );
 }
 
 static void uc1_tri2(uint32_t w0, uint32_t w1)
 {
+   if (hexen_trace.enabled)
+      hexen_trace.f3dex_triangles += 2;
    glide64gSP2Triangles( _SHIFTR( w0, 17, 7 ), _SHIFTR( w0, 9, 7 ), _SHIFTR( w0, 1, 7 ), 0,
          _SHIFTR( w1, 17, 7 ), _SHIFTR( w1, 9, 7 ), _SHIFTR( w1, 1, 7 ), 0);
 }

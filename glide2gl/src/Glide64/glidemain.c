@@ -46,12 +46,27 @@
 #include "Glide64_Ini.h"
 #include "GlideExtensions.h"
 #include "FrameSkipper_glide64.h"
+#include "hexen_trace.h"
 #include <libretro.h>
 
 #include "../../../Graphics/RDP/gDP_funcs_C.h"
 
 extern retro_log_printf_t log_cb;
 extern uint32_t screen_aspectmodehint;
+struct glide64_hexen_trace hexen_trace;
+
+static void hexen_trace_report(void)
+{
+   log_cb(RETRO_LOG_INFO,
+         "[Hexen/Glide64] VI=%u F3DEX=%u received=%u culled=%u OpenGL=%u\n",
+         hexen_trace.vi_count, hexen_trace.f3dex_triangles,
+         hexen_trace.received, hexen_trace.culled, hexen_trace.gl_triangles);
+   hexen_trace.vi_count = 0;
+   hexen_trace.f3dex_triangles = 0;
+   hexen_trace.received = 0;
+   hexen_trace.culled = 0;
+   hexen_trace.gl_triangles = 0;
+}
 
 #if defined(__GNUC__)
 #include <sys/time.h>
@@ -488,6 +503,9 @@ output:   none
 *******************************************************************/
 void glide64RomClosed (void)
 {
+   if (hexen_trace.enabled && hexen_trace.vi_count)
+      hexen_trace_report();
+   hexen_trace.enabled = false;
    glide64_frameskip_reset();
    ReleaseGfx ();
 }
@@ -577,6 +595,10 @@ int glide64RomOpen (void)
       name[strlen(name)-1] = 0;
 
    strncpy(rdp.RomName, name, sizeof(name));
+   memset(&hexen_trace, 0, sizeof(hexen_trace));
+   hexen_trace.enabled = log_cb && strcmp(name, "HEXEN") == 0;
+   if (hexen_trace.enabled)
+      log_cb(RETRO_LOG_INFO, "[Hexen/Glide64] Geometry trace active\n");
    ReadSpecialSettings (name);
    ClearCache ();
 
@@ -626,6 +648,9 @@ int retro_return(bool a);
 void glide64UpdateScreen (void)
 {
    bool forced_update = false;
+
+   if (hexen_trace.enabled && ++hexen_trace.vi_count == 120)
+      hexen_trace_report();
 
    /* Official Glide64mk2 frameskip updates its scheduler on each VI and
     * applies the decision to the following graphics display list. */

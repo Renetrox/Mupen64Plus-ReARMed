@@ -171,6 +171,7 @@ uint8_t microcode[4096];
 uint32_t uc_crc;
 
 /* ** UCODE FUNCTIONS ** */
+#include "hexen_trace.h"
 #include "ucode.h"
 #include "glide64_gDP.h"
 #include "glide64_gSP.h"

@@ -45,6 +45,7 @@
 #include "3dmath.h"
 #include "TexCache.h"
 #include "Framebuffer_glide64.h"
+#include "hexen_trace.h"
 #include "../../../Graphics/GBI.h"
 #include "../../Graphics/RDP/gDP_state.h"
 #include "../../Graphics/RSP/gSP_funcs_C.h"
@@ -1519,19 +1520,30 @@ void cull_trianglefaces(VERTEX **v, unsigned iterations, bool do_update, bool do
 {
    uint32_t i;
    int32_t vcount = 0;
+   const bool trace = hexen_trace.enabled && wd == 0;
+
+   if (trace)
+      hexen_trace.received += iterations;
 
    if (do_update)
       update();
 
    for (i = 0; i < iterations; i++, vcount += 3)
    {
-      if (do_cull)
-         if (cull_tri(v + vcount))
-            continue;
+      if (do_cull && cull_tri(v + vcount))
+      {
+         if (trace)
+            hexen_trace.culled++;
+         continue;
+      }
 
       deltaZ = dzdx = 0;
       if (wd == 0 && (fb_depth_render_enabled || (rdp.rm & ZMODE_DECAL) == ZMODE_DECAL))
          draw_tri_depth(v + vcount);
+      if (trace)
+         hexen_trace.drawing_triangle = true;
       draw_tri (v + vcount, wd);
+      if (trace)
+         hexen_trace.drawing_triangle = false;
    }
 }

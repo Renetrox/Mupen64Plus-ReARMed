@@ -24,6 +24,7 @@
 #include "glide.h"
 #include "glitchmain.h"
 #include "../Glide64/rdp.h"
+#include "../Glide64/hexen_trace.h"
 
 /* TODO: get rid of glitch_vbo */
 /* TODO: try glDrawElements */
@@ -55,6 +56,7 @@ static bool       vbuf_enabled   = false;
 static GLuint     vbuf_vbo       = 0;
 static size_t     vbuf_vbo_size  = 0;
 static bool       vbuf_drawing   = false;
+static unsigned   vbuf_hexen_triangles;
 
 extern retro_environment_t environ_cb;
 
@@ -63,6 +65,7 @@ void vbo_init(void)
    struct retro_variable var = { "mupen64-vcache-vbo", 0 };
    vbuf_use_vbo = false;
    vbuf_length = 0;
+   vbuf_hexen_triangles = 0;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
       vbuf_use_vbo = (strcmp(var.value, "enabled") == 0);
@@ -90,6 +93,7 @@ void vbo_free(void)
    vbuf_vbo_size = 0;
 
    vbuf_length  = 0;
+   vbuf_hexen_triangles = 0;
    vbuf_enabled = false;
    vbuf_drawing = false;
 }
@@ -144,6 +148,11 @@ void vbo_draw(void)
    else
       glDrawArrays(vbuf_primitive, 0, vbuf_length);
 
+   if (vbuf_hexen_triangles)
+   {
+      hexen_trace.gl_triangles += vbuf_hexen_triangles;
+      vbuf_hexen_triangles = 0;
+   }
    vbuf_length = 0;
    vbuf_drawing = false;
 }
@@ -156,6 +165,14 @@ static void vbo_append(GLenum mode, GLsizei count, void *pointers)
    /* keep caching triangles as much as possible. */
    if (count == 3 && vbuf_primitive == GL_TRIANGLES)
       mode = GL_TRIANGLES;
+
+   if (hexen_trace.drawing_triangle && count >= 3)
+   {
+      if (mode == GL_TRIANGLES)
+         vbuf_hexen_triangles += count / 3;
+      else if (mode == GL_TRIANGLE_FAN || mode == GL_TRIANGLE_STRIP)
+         vbuf_hexen_triangles += count - 2;
+   }
 
    while (count--)
    {
