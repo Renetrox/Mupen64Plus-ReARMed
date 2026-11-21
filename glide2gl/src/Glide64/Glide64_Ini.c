@@ -121,6 +121,7 @@ void ReadSpecialSettings (const char * name)
 
    settings.hacks = 0;
    settings.use_display_list_depth = strcmp(name, "HEXEN") == 0;
+   settings.preserve_rdp_scissor = false;
 
    settings.use_rdp_triangle_depth = strcmp(name, "NIGHTMARE CREATURES") == 0;
    if (settings.use_rdp_triangle_depth)
@@ -1113,6 +1114,7 @@ void ReadSpecialSettings (const char * name)
    {
       settings.filtering = 1;
       settings.use_rdp_triangle_depth = true;
+      settings.preserve_rdp_scissor = true;
    }
    else if (strstr(name, (const char*)"LEGORacers"))
    {

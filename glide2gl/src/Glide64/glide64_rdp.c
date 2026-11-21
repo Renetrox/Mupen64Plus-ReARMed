@@ -277,6 +277,9 @@ void rdp_reset(void)
    int i;
    reset                = 1;
 
+   if (settings.preserve_rdp_scissor)
+      rdp.scissor_set = false;
+
    if (!rdp.vtx)
       return;
 
@@ -2110,9 +2113,17 @@ static void rdphalf_cont(uint32_t w0, uint32_t w1)
 
 static void glide64ProcessRDPList_restorestate(void)
 {
+   const bool preserve_scissor = settings.preserve_rdp_scissor && rdp.scissor_set;
+   const gdp_rectangle scissor = g_gdp.__clip;
+
    no_dlist                       = false;
    update_screen_count            = 0;
    ChangeSize();
+
+   /* A packet boundary does not reset RDP state. ChangeSize installs a
+    * full-screen scissor, but subsequent packets may reuse SetScissor. */
+   if (preserve_scissor)
+      g_gdp.__clip = scissor;
 
    /* Set states */
    if (settings.swapmode > 0)
@@ -2142,7 +2153,7 @@ static void glide64ProcessRDPList_restorestate(void)
    if (rdp.vi_org_reg != *gfx_info.VI_ORIGIN_REG)		
       rdp.tlut_mode                     = 0; /* is it correct? */
 
-   rdp.scissor_set      = false;
+   rdp.scissor_set      = preserve_scissor;
    gSP.DMAOffsets.tex_offset  = 0;
    gSP.DMAOffsets.tex_count   = 0;
    cpu_fb_write         = false;
