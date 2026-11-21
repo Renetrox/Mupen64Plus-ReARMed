@@ -601,14 +601,17 @@ int glide64RomOpen (void)
    if (hexen_trace.enabled)
    {
       const char *mode = getenv("REARMED_HEXEN_BYPASS");
+      const char *clear_depth = getenv("REARMED_HEXEN_CLEAR_DEPTH");
+      hexen_trace.clear_depth_on_swap = clear_depth && strcmp(clear_depth, "1") == 0;
       if (mode && strcmp(mode, "depth") == 0)
          hexen_trace.bypass = HEXEN_VISIBILITY_DEPTH;
       else if (mode && strcmp(mode, "cull") == 0)
          hexen_trace.bypass = HEXEN_VISIBILITY_CULL;
       else if (mode && strcmp(mode, "scissor") == 0)
          hexen_trace.bypass = HEXEN_VISIBILITY_SCISSOR;
-      log_cb(RETRO_LOG_INFO, "[Hexen/Glide64] Geometry trace active; bypass=%s\n",
-            hexen_trace.bypass == HEXEN_VISIBILITY_NORMAL ? "none" : mode);
+      log_cb(RETRO_LOG_INFO, "[Hexen/Glide64] Geometry trace active; bypass=%s; depth_clear=%s\n",
+            hexen_trace.bypass == HEXEN_VISIBILITY_NORMAL ? "none" : mode,
+            hexen_trace.clear_depth_on_swap ? "swap" : "off");
    }
    ReadSpecialSettings (name);
    ClearCache ();
@@ -738,6 +741,14 @@ void newSwapBuffers(void)
       {
          grDepthMask (FXTRUE);
          grBufferClear (0, 0, 0xFFFF);
+      }
+      else if (hexen_trace.enabled && hexen_trace.clear_depth_on_swap)
+      {
+         /* RetroArch's hardware framebuffer is shared across swaps.
+          * Clear only its depth attachment, preserving the latched color. */
+         grDepthMask(FXTRUE);
+         grBufferClearDepth();
+         grDepthMask(FXFALSE);
       }
    }
 

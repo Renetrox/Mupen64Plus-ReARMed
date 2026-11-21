@@ -357,6 +357,7 @@ void grVertexLayout(uint32_t param, int32_t offset, uint32_t mode);
 void grDrawVertexArrayContiguous(uint32_t mode, uint32_t Count, void *pointers);
 
 void grBufferClear(uint32_t color, uint32_t alpha, uint32_t depth);
+void grBufferClearDepth(void);
 
 void grBufferSwap(uint32_t swap_interval);
 

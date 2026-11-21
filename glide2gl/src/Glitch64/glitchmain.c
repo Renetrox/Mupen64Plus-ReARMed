@@ -307,6 +307,17 @@ void grBufferClear(uint32_t color, uint32_t alpha, uint32_t depth)
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+void grBufferClearDepth(void)
+{
+   const bool scissor = glIsEnabled(GL_SCISSOR_TEST);
+   if (scissor)
+      glDisable(GL_SCISSOR_TEST);
+   glClearDepth(1.0f);
+   glClear(GL_DEPTH_BUFFER_BIT);
+   if (scissor)
+      glEnable(GL_SCISSOR_TEST);
+}
+
 void grColorMask(bool rgb, bool a)
 {
    glColorMask(rgb, rgb, rgb, a);
