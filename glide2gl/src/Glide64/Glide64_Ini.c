@@ -594,8 +594,9 @@ void ReadSpecialSettings (const char * name)
       settings.filtering = 1;
       //depthmode = 0
       smart_read = 1;
+      /* FZ's Glide64mk2 profile uses the full texture rectangle path. */
+      optimize_texrect = 0;
 #ifdef HAVE_HWFBE
-      optimize_texrect = 1;
       hires = 1;
 #endif
       //fb_clear = 1
@@ -1383,10 +1384,10 @@ void ReadSpecialSettings (const char * name)
       //fb_clear = 1
       settings.old_style_adither = 1;
    }
-   else if (strstr(name, (const char *)"CASTLEVANIA")
-         || strstr(name, (const char *)"CASTLEVANIA2"))
+   else if (strstr(name, "CASTLEVANIA"))
    {
-	  settings.old_style_adither = 1;
+      /* FZ enables legacy alpha dithering for CASTLEVANIA, not CASTLEVANIA2. */
+      settings.old_style_adither = strcmp(name, "CASTLEVANIA2") != 0;
       //depthmode = 0
       //fb_clear = 1
 #ifndef HAVE_HWFBE
