@@ -232,6 +232,7 @@ typedef struct
    uint32_t hacks;
    bool use_rdp_triangle_depth;
    bool scars_opaque_test;
+   bool scars_zcompare_test;
 } SETTINGS;
 
 typedef struct

@@ -1059,6 +1059,21 @@ static void glide64_z_compare(void)
          depthmask_val = FXTRUE;
    }
 
+   /* Diagnostic only: test comparison for the reported blend mode while
+    * leaving the blender and the depth write mask unchanged. */
+   if (settings.scars_zcompare_test && drawing_cycle &&
+         (gDP.otherMode.l & ~7U) == 0x0c184260)
+   {
+      static bool reported;
+      depthbuf_func = GR_CMP_LEQUAL;
+      if (!reported)
+      {
+         fprintf(stderr, "[SCARS/Glide64] targeted depth compare applied (zwrite=%u)\n",
+               (unsigned)depthmask_val);
+         reported = true;
+      }
+   }
+
    grDepthBiasLevel(depthbias_level);
    grDepthBufferFunction (depthbuf_func);
    grDepthMask(depthmask_val);
@@ -1070,6 +1085,9 @@ static void glide64_z_compare(void)
 void update(void)
 {
    bool set_scissor = false;
+
+   if (settings.scars_zcompare_test && rdp.render_mode_changed)
+      g_gdp.flags |= UPDATE_ZBUF_ENABLED;
 
    // Check for rendermode changes
    // Z buffer
