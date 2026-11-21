@@ -477,7 +477,15 @@ extern struct conker_shadow_trace
    unsigned suppressed_clears;
    unsigned shadow_copies;
    int copy_size;
+   bool isolate;
+   unsigned isolated_passes;
+   unsigned exported_masks;
+   unsigned nonwhite_pixels;
+   unsigned isolation_failures;
 } conker_shadow_trace;
+
+void glide64_conker_shadow_begin(void);
+void glide64_conker_shadow_end(uint8_t *dst);
 extern SETTINGS settings;
 extern VOODOO voodoo;
 

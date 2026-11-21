@@ -1317,6 +1317,14 @@ static void RestoreScale(void)
 
 static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
 {
+   const bool isolate = conker_shadow_trace.enabled && conker_shadow_trace.isolate;
+   const uint32_t color_address = RSP_SegmentToPhysical(w1);
+   const bool shadow_target = color_address == 0x0de080 &&
+      (w0 & 0xfff) == 63 && _SHIFTR(w0, 19, 2) == G_IM_SIZ_8b;
+
+   if (isolate && conker_shadow_trace.shadow_target && !shadow_target)
+      glide64_conker_shadow_end(gfx_info.RDRAM + conker_shadow_trace.shadow_address);
+
    gdp_set_color_image(w0, w1);
 
    if (fb_emulation_enabled && (rdp.num_of_ci < NUMTEXBUF))
@@ -1518,14 +1526,15 @@ static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
    }
 
    rdp.ocimg              = gDP.colorImage.address;
-   gDP.colorImage.address = RSP_SegmentToPhysical(w1);
+   gDP.colorImage.address = color_address;
    gDP.colorImage.width           = (w0 & 0xFFF) + 1;
 
    if (conker_shadow_trace.enabled)
    {
-      conker_shadow_trace.shadow_target =
-         gDP.colorImage.address == 0x0de080 &&
-         gDP.colorImage.width == 64 && g_gdp.fb_size == G_IM_SIZ_8b;
+      const bool begin_shadow = isolate && shadow_target && !conker_shadow_trace.shadow_target;
+      conker_shadow_trace.shadow_target = shadow_target;
+      if (begin_shadow)
+         glide64_conker_shadow_begin();
       if (conker_shadow_trace.shadow_target)
       {
          conker_shadow_trace.shadow_address = gDP.colorImage.address;

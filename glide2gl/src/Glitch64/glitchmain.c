@@ -44,6 +44,123 @@ int glsl_support = 1;
 extern uint16_t *glide64_frameBuffer;
 static uint8_t  *buf;
 
+static GLuint shadow_fbo;
+static GLuint shadow_color;
+static GLuint shadow_depth;
+static GLint shadow_previous_fbo;
+static bool shadow_fbo_active;
+
+void vbo_draw(void);
+
+static void free_shadow_fbo(void)
+{
+   if (shadow_fbo)
+      glDeleteFramebuffers(1, &shadow_fbo);
+   if (shadow_color)
+      glDeleteRenderbuffers(1, &shadow_color);
+   if (shadow_depth)
+      glDeleteRenderbuffers(1, &shadow_depth);
+   shadow_fbo = shadow_color = shadow_depth = 0;
+}
+
+void glide64_conker_shadow_begin(void)
+{
+   GLint color_mask[4], depth_mask;
+   bool scissor_enabled;
+
+   if (shadow_fbo_active || width <= 0 || height <= 0)
+      return;
+
+   vbo_draw();
+   glGetIntegerv(GL_FRAMEBUFFER_BINDING, &shadow_previous_fbo);
+   if (!shadow_fbo)
+   {
+      GLint previous_renderbuffer;
+      glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous_renderbuffer);
+      glGenFramebuffers(1, &shadow_fbo);
+      glGenRenderbuffers(1, &shadow_color);
+      glGenRenderbuffers(1, &shadow_depth);
+
+      glBindFramebuffer(GL_FRAMEBUFFER, shadow_fbo);
+      glBindRenderbuffer(GL_RENDERBUFFER, shadow_color);
+      glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA4, width, height);
+      glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+            GL_RENDERBUFFER, shadow_color);
+      glBindRenderbuffer(GL_RENDERBUFFER, shadow_depth);
+      glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
+      glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+            GL_RENDERBUFFER, shadow_depth);
+      glBindRenderbuffer(GL_RENDERBUFFER, previous_renderbuffer);
+   }
+   else
+      glBindFramebuffer(GL_FRAMEBUFFER, shadow_fbo);
+
+   if (!shadow_fbo || glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+   {
+      glBindFramebuffer(GL_FRAMEBUFFER, shadow_previous_fbo);
+      glCheckFramebufferStatus(GL_FRAMEBUFFER);
+      free_shadow_fbo();
+      conker_shadow_trace.isolation_failures++;
+      return;
+   }
+
+   glGetIntegerv(GL_COLOR_WRITEMASK, color_mask);
+   glGetIntegerv(GL_DEPTH_WRITEMASK, &depth_mask);
+   scissor_enabled = glIsEnabled(GL_SCISSOR_TEST);
+   glDisable(GL_SCISSOR_TEST);
+   glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+   glDepthMask(GL_TRUE);
+   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+   glClearDepth(1.0f);
+   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+   glDepthMask(depth_mask);
+   glColorMask(color_mask[0], color_mask[1], color_mask[2], color_mask[3]);
+   if (scissor_enabled)
+      glEnable(GL_SCISSOR_TEST);
+   shadow_fbo_active = true;
+   conker_shadow_trace.isolated_passes++;
+}
+
+void glide64_conker_shadow_end(uint8_t *dst)
+{
+   int x, y;
+   const int left = (int)rdp.offset_x;
+   const int top = (int)rdp.offset_y;
+   const int right = (int)(rdp.offset_x + 64.0f * rdp.scale_x);
+   const int bottom = (int)(rdp.offset_y + 64.0f * rdp.scale_y);
+   const int read_width = right - left;
+   const int read_height = bottom - top;
+
+   if (!shadow_fbo_active)
+      return;
+
+   vbo_draw();
+   if (buf && left >= 0 && top >= 0 && right <= width && bottom <= height &&
+         read_width > 0 && read_height > 0)
+   {
+      glReadPixels(left, height - bottom, read_width, read_height,
+            GL_RGBA, GL_UNSIGNED_BYTE, buf);
+      for (y = 0; y < 64; y++)
+      {
+         const int row = read_height - 1 - ((2 * y + 1) * read_height / 128);
+         for (x = 0; x < 64; x++)
+         {
+            const int column = (2 * x + 1) * read_width / 128;
+            const uint8_t intensity = buf[4 * (row * read_width + column)];
+            dst[(y * 64 + x) ^ BYTE_ADDR_XOR] = intensity;
+            conker_shadow_trace.nonwhite_pixels += intensity != 255;
+         }
+      }
+      conker_shadow_trace.exported_masks++;
+   }
+   else
+      conker_shadow_trace.isolation_failures++;
+
+   glBindFramebuffer(GL_FRAMEBUFFER, shadow_previous_fbo);
+   glCheckFramebufferStatus(GL_FRAMEBUFFER);
+   shadow_fbo_active = false;
+}
+
 static int isExtensionSupported(const char *extension)
 {
    const char *str = (const char*)glGetString(GL_EXTENSIONS);
@@ -114,6 +231,11 @@ uint32_t grSstWinOpen(void)
 
 int32_t grSstWinClose(uint32_t context)
 {
+   if (shadow_fbo_active)
+      glBindFramebuffer(GL_FRAMEBUFFER, shadow_previous_fbo);
+   shadow_fbo_active = false;
+   free_shadow_fbo();
+
    if (glide64_frameBuffer)
       free(glide64_frameBuffer);
 

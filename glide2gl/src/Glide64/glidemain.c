@@ -61,18 +61,22 @@ static void report_conker_shadow_trace(void)
       log_cb(RETRO_LOG_INFO,
             "[Conker/Shadow] VI=%u fb_emulation=%u addr=%06x color=%u texture=%u "
             "draws=%u draw_fbo=%d swaps=%u swap_fbo=%d shadow_swaps=%u "
-            "suppress=%u skipped_draws=%u skipped_clears=%u copies=%u copy_size=%d\n",
+            "suppress=%u skipped_draws=%u skipped_clears=%u copies=%u copy_size=%d "
+            "isolate=%u isolated=%u exported=%u nonwhite=%u failed=%u\n",
             trace->vi, (unsigned)fb_emulation_enabled, trace->shadow_address,
             trace->color_images, trace->texture_images, trace->draws,
             trace->draw_fbo, trace->swaps, trace->swap_fbo, trace->shadow_swaps,
             (unsigned)trace->suppress, trace->suppressed_draws, trace->suppressed_clears,
-            trace->shadow_copies, trace->copy_size);
+            trace->shadow_copies, trace->copy_size, (unsigned)trace->isolate,
+            trace->isolated_passes, trace->exported_masks, trace->nonwhite_pixels,
+            trace->isolation_failures);
 
    *trace = (struct conker_shadow_trace){
       .enabled = trace->enabled,
       .shadow_target = trace->shadow_target,
       .shadow_address = trace->shadow_address,
       .suppress = trace->suppress,
+      .isolate = trace->isolate,
       .draw_fbo = -1,
       .swap_fbo = -1,
       .copy_size = -1
@@ -616,7 +620,10 @@ int glide64RomOpen (void)
    if (conker_shadow_trace.enabled)
    {
       const char *suppress = getenv("REARMED_CONKER_SKIP_SHADOW_DRAW");
-      conker_shadow_trace.suppress = suppress && strcmp(suppress, "1") == 0;
+      const char *isolate = getenv("REARMED_CONKER_SHADOW_FBO");
+      conker_shadow_trace.isolate = isolate && strcmp(isolate, "1") == 0;
+      conker_shadow_trace.suppress = !conker_shadow_trace.isolate &&
+         suppress && strcmp(suppress, "1") == 0;
    }
    ReadSpecialSettings (name);
    ClearCache ();
@@ -740,6 +747,8 @@ void newSwapBuffers(void)
       DrawWholeFrameBufferToScreen();
 
    {
+      if (conker_shadow_trace.enabled && conker_shadow_trace.isolate && conker_shadow_trace.shadow_target)
+         glide64_conker_shadow_end(gfx_info.RDRAM + conker_shadow_trace.shadow_address);
       grBufferSwap (settings.vsync);
 
       if  (settings.buff_clear || (settings.hacks & hack_PPL && settings.ucode == 6))
