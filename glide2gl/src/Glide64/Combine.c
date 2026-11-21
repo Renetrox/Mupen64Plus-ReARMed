@@ -14301,6 +14301,21 @@ void CombineBlender(void)
       }
    }
    //*/
+
+   /* Diagnostic only: keep depth and the color/alpha combiner intact. */
+   if (settings.scars_opaque_test && gDP.otherMode.cycleType < G_CYC_COPY &&
+         ((rdp.flags & ZBUF_ENABLED) || gDP.otherMode.depthCompare || gDP.otherMode.depthUpdate) &&
+         (cmb.abf1 != GR_BLEND_ONE || cmb.abf2 != GR_BLEND_ZERO))
+   {
+      static bool reported;
+      if (!reported)
+      {
+         fprintf(stderr, "[SCARS/Glide64] opaque test replaced a blend mode (othermode=%08x)\n",
+               gDP.otherMode.l);
+         reported = true;
+      }
+      A_BLEND (GR_BLEND_ONE, GR_BLEND_ZERO);
+   }
 }
 
 void InitCombine(void)
