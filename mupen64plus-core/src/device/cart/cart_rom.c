@@ -32,7 +32,13 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#define CART_ROM_ADDR_MASK UINT32_C(0x03ffffff);
+static uint32_t cart_dma_offset(const struct cart_rom* cart_rom, uint32_t address)
+{
+    /* Preserve legacy mirrors for standard cartridges. Larger cartridges
+     * use the higher PI address bits, as in upstream Mupen64Plus. */
+    return address & (cart_rom->rom_size > CART_ROM_LEGACY_SIZE
+        ? UINT32_C(0xefffffff) : UINT32_C(0x03ffffff));
+}
 
 
 void init_cart_rom(struct cart_rom* cart_rom,
@@ -56,7 +62,8 @@ void poweron_cart_rom(struct cart_rom* cart_rom)
 void read_cart_rom(void* opaque, uint32_t address, uint32_t* value)
 {
     struct cart_rom* cart_rom = (struct cart_rom*)opaque;
-    uint32_t addr = rom_address(address);
+    uint32_t addr = address & (cart_rom->rom_size > CART_ROM_LEGACY_SIZE
+        ? UINT32_C(0x0ffffffc) : UINT32_C(0x03fffffc));
 
     if (cart_rom->pi->regs[PI_STATUS_REG] & PI_STATUS_IO_BUSY)
     {
@@ -64,7 +71,8 @@ void read_cart_rom(void* opaque, uint32_t address, uint32_t* value)
     }
     else
     {
-        *value = *(uint32_t*)(cart_rom->rom + addr);
+        *value = addr + sizeof(*value) <= cart_rom->rom_size
+            ? *(uint32_t*)(cart_rom->rom + addr) : 0;
     }
 }
 
@@ -84,7 +92,7 @@ void write_cart_rom(void* opaque, uint32_t address, uint32_t value, uint32_t mas
 
 unsigned int cart_rom_dma_read(void* opaque, const uint8_t* dram, uint32_t dram_addr, uint32_t cart_addr, uint32_t length)
 {
-    cart_addr &= CART_ROM_ADDR_MASK;
+    cart_addr = cart_dma_offset((const struct cart_rom*)opaque, cart_addr);
 
     DebugMessage(M64MSG_WARNING, "DMA Writing to CART_ROM: 0x%" PRIX32 " -> 0x%" PRIX32 " (0x%" PRIX32 ")", dram_addr, cart_addr, length);
 
@@ -97,9 +105,9 @@ unsigned int cart_rom_dma_write(void* opaque, uint8_t* dram, uint32_t dram_addr,
     struct cart_rom* cart_rom = (struct cart_rom*)opaque;
     const uint8_t* mem = cart_rom->rom;
 
-    cart_addr &= CART_ROM_ADDR_MASK;
+    cart_addr = cart_dma_offset(cart_rom, cart_addr);
 
-    if (cart_addr + length < cart_rom->rom_size)
+    if (cart_addr < cart_rom->rom_size && length <= cart_rom->rom_size - cart_addr)
     {
         for(i = 0; i < length; ++i) {
             dram[(dram_addr+i)^S8] = mem[(cart_addr+i)^S8];
