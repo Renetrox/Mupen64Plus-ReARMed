@@ -1275,6 +1275,10 @@ static void rdp_settextureimage(uint32_t w0, uint32_t w1)
       }
    }
 
+   if (conker_shadow_trace.enabled && conker_shadow_trace.shadow_address &&
+         g_gdp.ti_address - conker_shadow_trace.shadow_address < 64 * 64)
+      conker_shadow_trace.texture_images++;
+
    rdp.s2dex_tex_loaded = true;
 
    if (rdp.ci_count > 0 && rdp.frame_buffers[rdp.ci_count-1].status == CI_COPY_SELF && (g_gdp.ti_address >= gDP.colorImage.address) && (g_gdp.ti_address < rdp.ci_end))
@@ -1516,6 +1520,17 @@ static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
    rdp.ocimg              = gDP.colorImage.address;
    gDP.colorImage.address = RSP_SegmentToPhysical(w1);
    gDP.colorImage.width           = (w0 & 0xFFF) + 1;
+
+   if (conker_shadow_trace.enabled)
+   {
+      conker_shadow_trace.shadow_target =
+         gDP.colorImage.width == 64 && g_gdp.fb_size == G_IM_SIZ_8b;
+      if (conker_shadow_trace.shadow_target)
+      {
+         conker_shadow_trace.shadow_address = gDP.colorImage.address;
+         conker_shadow_trace.color_images++;
+      }
+   }
 
    if (fb_emulation_enabled && rdp.ci_count > 0)
       gDP.colorImage.height = rdp.frame_buffers[rdp.ci_count-1].height;

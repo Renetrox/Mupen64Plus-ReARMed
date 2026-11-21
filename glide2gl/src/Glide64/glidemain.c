@@ -51,6 +51,28 @@
 #include "../../../Graphics/RDP/gDP_funcs_C.h"
 
 extern retro_log_printf_t log_cb;
+struct conker_shadow_trace conker_shadow_trace;
+
+static void report_conker_shadow_trace(void)
+{
+   struct conker_shadow_trace *trace = &conker_shadow_trace;
+
+   if (log_cb)
+      log_cb(RETRO_LOG_INFO,
+            "[Conker/Shadow] VI=%u fb_emulation=%u addr=%06x color=%u texture=%u "
+            "draws=%u draw_fbo=%d swaps=%u swap_fbo=%d shadow_swaps=%u\n",
+            trace->vi, (unsigned)fb_emulation_enabled, trace->shadow_address,
+            trace->color_images, trace->texture_images, trace->draws,
+            trace->draw_fbo, trace->swaps, trace->swap_fbo, trace->shadow_swaps);
+
+   *trace = (struct conker_shadow_trace){
+      .enabled = trace->enabled,
+      .shadow_target = trace->shadow_target,
+      .shadow_address = trace->shadow_address,
+      .draw_fbo = -1,
+      .swap_fbo = -1
+   };
+}
 extern uint32_t screen_aspectmodehint;
 
 #if defined(__GNUC__)
@@ -488,6 +510,9 @@ output:   none
 *******************************************************************/
 void glide64RomClosed (void)
 {
+   if (conker_shadow_trace.enabled && conker_shadow_trace.vi)
+      report_conker_shadow_trace();
+   conker_shadow_trace.enabled = false;
    glide64_frameskip_reset();
    ReleaseGfx ();
 }
@@ -577,6 +602,11 @@ int glide64RomOpen (void)
       name[strlen(name)-1] = 0;
 
    strncpy(rdp.RomName, name, sizeof(name));
+   conker_shadow_trace = (struct conker_shadow_trace){
+      .enabled = log_cb && strcmp(name, "CONKER BFD") == 0,
+      .draw_fbo = -1,
+      .swap_fbo = -1
+   };
    ReadSpecialSettings (name);
    ClearCache ();
 
@@ -626,6 +656,9 @@ int retro_return(bool a);
 void glide64UpdateScreen (void)
 {
    bool forced_update = false;
+
+   if (conker_shadow_trace.enabled && ++conker_shadow_trace.vi >= 120)
+      report_conker_shadow_trace();
 
    /* Official Glide64mk2 frameskip updates its scheduler on each VI and
     * applies the decision to the following graphics display list. */

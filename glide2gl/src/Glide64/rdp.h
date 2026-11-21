@@ -458,6 +458,21 @@ struct RDP
 
 
 extern struct RDP rdp;
+
+extern struct conker_shadow_trace
+{
+   bool enabled;
+   bool shadow_target;
+   uint32_t shadow_address;
+   unsigned vi;
+   unsigned color_images;
+   unsigned texture_images;
+   unsigned draws;
+   unsigned swaps;
+   unsigned shadow_swaps;
+   int32_t draw_fbo;
+   int32_t swap_fbo;
+} conker_shadow_trace;
 extern SETTINGS settings;
 extern VOODOO voodoo;
 

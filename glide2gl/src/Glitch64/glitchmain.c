@@ -288,6 +288,14 @@ grLfbWriteRegion( int32_t dst_buffer,
 
 void grBufferSwap(uint32_t swap_interval)
 {
+   if (conker_shadow_trace.enabled)
+   {
+      if (conker_shadow_trace.swaps++ == 0)
+         glGetIntegerv(GL_FRAMEBUFFER_BINDING, &conker_shadow_trace.swap_fbo);
+      if (conker_shadow_trace.shadow_target)
+         conker_shadow_trace.shadow_swaps++;
+   }
+
    retro_return(true);
 }
 

@@ -279,6 +279,12 @@ void grDepthBiasLevel( int32_t level )
 
 void grDrawVertexArrayContiguous(uint32_t mode, uint32_t count, void *pointers)
 {
+   if (conker_shadow_trace.enabled && conker_shadow_trace.shadow_target && count >= 3)
+   {
+      if (conker_shadow_trace.draws++ == 0)
+         glGetIntegerv(GL_FRAMEBUFFER_BINDING, &conker_shadow_trace.draw_fbo);
+   }
+
    if(need_to_compile)
       compile_shader();
 
