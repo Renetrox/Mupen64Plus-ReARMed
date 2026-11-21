@@ -988,6 +988,9 @@ void CopyFrameBuffer(int32_t buffer)
    uint32_t height = 0;
    uint32_t width  = gDP.colorImage.width;//*gfx_info.VI_WIDTH_REG;
 
+   if (nightmare_trace.enabled)
+      nightmare_trace.buffer_copies++;
+
    if (fb_emulation_enabled && !(settings.hacks&hack_PPL))
    {
       int ind = (rdp.ci_count > 0) ? (rdp.ci_count-1) : 0;

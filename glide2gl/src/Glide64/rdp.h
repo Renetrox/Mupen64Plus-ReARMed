@@ -463,6 +463,19 @@ struct RDP
 
 
 extern struct RDP rdp;
+
+/* Temporary Nightmare Creatures trace, reported once per 120 VI callbacks. */
+extern struct nightmare_render_trace {
+   bool enabled;
+   unsigned vi;
+   unsigned lists;
+   unsigned classified_lists;
+   unsigned aux_targets;
+   unsigned aux_triangles;
+   unsigned triangles;
+   unsigned buffer_copies;
+   unsigned zscreen;
+} nightmare_trace;
 extern SETTINGS settings;
 extern VOODOO voodoo;
 

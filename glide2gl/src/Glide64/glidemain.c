@@ -51,6 +51,18 @@
 #include "../../../Graphics/RDP/gDP_funcs_C.h"
 
 extern retro_log_printf_t log_cb;
+struct nightmare_render_trace nightmare_trace;
+
+static void report_nightmare_render_trace(void)
+{
+   log_cb(RETRO_LOG_INFO,
+         "[Nightmare/Render] VI=%u swap=%d lists=%u classified=%u aux_targets=%u aux_triangles=%u triangles=%u copies=%u ZSCREEN=%u\n",
+         nightmare_trace.vi, settings.swapmode, nightmare_trace.lists,
+         nightmare_trace.classified_lists, nightmare_trace.aux_targets,
+         nightmare_trace.aux_triangles, nightmare_trace.triangles,
+         nightmare_trace.buffer_copies, nightmare_trace.zscreen);
+   nightmare_trace = (struct nightmare_render_trace){ .enabled = true };
+}
 extern uint32_t screen_aspectmodehint;
 
 #if defined(__GNUC__)
@@ -488,6 +500,9 @@ output:   none
 *******************************************************************/
 void glide64RomClosed (void)
 {
+   if (nightmare_trace.enabled && log_cb && (nightmare_trace.vi || nightmare_trace.lists))
+      report_nightmare_render_trace();
+   nightmare_trace.enabled = false;
    glide64_frameskip_reset();
    ReleaseGfx ();
 }
@@ -578,6 +593,9 @@ int glide64RomOpen (void)
 
    strncpy(rdp.RomName, name, sizeof(name));
    ReadSpecialSettings (name);
+   nightmare_trace = (struct nightmare_render_trace){
+      .enabled = log_cb && strcmp(name, "NIGHTMARE CREATURES") == 0
+   };
    ClearCache ();
 
    CheckDRAMSize();
@@ -626,6 +644,9 @@ int retro_return(bool a);
 void glide64UpdateScreen (void)
 {
    bool forced_update = false;
+
+   if (nightmare_trace.enabled && ++nightmare_trace.vi >= 120 && log_cb)
+      report_nightmare_render_trace();
 
    /* Official Glide64mk2 frameskip updates its scheduler on each VI and
     * applies the decision to the following graphics display list. */

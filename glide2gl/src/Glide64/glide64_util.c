@@ -1537,6 +1537,13 @@ void cull_trianglefaces(VERTEX **v, unsigned iterations, bool do_update, bool do
       deltaZ = dzdx = 0;
       if (wd == 0 && (fb_depth_render_enabled || (rdp.rm & ZMODE_DECAL) == ZMODE_DECAL))
          draw_tri_depth(v + vcount);
+      if (nightmare_trace.enabled && wd == 0)
+      {
+         nightmare_trace.triangles++;
+         if (fb_emulation_enabled && rdp.ci_count > 0
+               && (rdp.ci_status == CI_AUX || rdp.ci_status == CI_AUX_COPY || rdp.ci_status == CI_COPY))
+            nightmare_trace.aux_triangles++;
+      }
       draw_tri (v + vcount, wd);
    }
 }

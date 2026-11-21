@@ -405,6 +405,12 @@ void glide64ProcessDList(void)
   depth_buffer_fog                    = true;
 
   //analyze possible frame buffer usage
+  if (nightmare_trace.enabled)
+  {
+    nightmare_trace.lists++;
+    if (fb_emulation_enabled)
+      nightmare_trace.classified_lists++;
+  }
   if (fb_emulation_enabled)
     DetectFrameBufferUsage();
   if (!(settings.hacks&hack_Lego) || rdp.num_of_ci > 1)
@@ -1510,6 +1516,8 @@ static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
          }
       }
       rdp.ci_status = cur_fb->status;
+      if (nightmare_trace.enabled && (rdp.ci_status == CI_AUX || rdp.ci_status == CI_AUX_COPY || rdp.ci_status == CI_COPY))
+         nightmare_trace.aux_targets++;
       rdp.ci_count++;
    }
 

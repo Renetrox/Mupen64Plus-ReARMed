@@ -680,6 +680,8 @@ void glide64gSPModifyVertex( uint32_t vtx, uint32_t where, uint32_t val )
       case G_MWO_POINT_ZSCREEN:
          {
             float scr_z = _FIXED2FLOAT((int16_t)_SHIFTR(val, 16, 16), 15);
+            if (nightmare_trace.enabled)
+               nightmare_trace.zscreen++;
             v->z_w      = (scr_z - gSP.viewport.vtrans[2]) / gSP.viewport.vscale[2];
             v->z        = v->z_w * v->w;
          }
