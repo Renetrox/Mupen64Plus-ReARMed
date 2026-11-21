@@ -47,6 +47,7 @@
 #include "GlideExtensions.h"
 #include "FrameSkipper_glide64.h"
 #include "hexen_trace.h"
+#include <stdlib.h>
 #include <libretro.h>
 
 #include "../../../Graphics/RDP/gDP_funcs_C.h"
@@ -598,7 +599,17 @@ int glide64RomOpen (void)
    memset(&hexen_trace, 0, sizeof(hexen_trace));
    hexen_trace.enabled = log_cb && strcmp(name, "HEXEN") == 0;
    if (hexen_trace.enabled)
-      log_cb(RETRO_LOG_INFO, "[Hexen/Glide64] Geometry trace active\n");
+   {
+      const char *mode = getenv("REARMED_HEXEN_BYPASS");
+      if (mode && strcmp(mode, "depth") == 0)
+         hexen_trace.bypass = HEXEN_VISIBILITY_DEPTH;
+      else if (mode && strcmp(mode, "cull") == 0)
+         hexen_trace.bypass = HEXEN_VISIBILITY_CULL;
+      else if (mode && strcmp(mode, "scissor") == 0)
+         hexen_trace.bypass = HEXEN_VISIBILITY_SCISSOR;
+      log_cb(RETRO_LOG_INFO, "[Hexen/Glide64] Geometry trace active; bypass=%s\n",
+            hexen_trace.bypass == HEXEN_VISIBILITY_NORMAL ? "none" : mode);
+   }
    ReadSpecialSettings (name);
    ClearCache ();
 

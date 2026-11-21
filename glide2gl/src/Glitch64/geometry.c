@@ -128,13 +128,42 @@ void vbo_buffer_data(void *data, size_t size)
    }
 }
 
+static bool hexen_disable_visibility_test(enum glide64_hexen_visibility bypass)
+{
+   switch (bypass)
+   {
+      case HEXEN_VISIBILITY_DEPTH:
+         if (!glIsEnabled(GL_DEPTH_TEST))
+            return false;
+         glDisable(GL_DEPTH_TEST);
+         return true;
+      case HEXEN_VISIBILITY_CULL:
+         if (!glIsEnabled(GL_CULL_FACE))
+            return false;
+         glDisable(GL_CULL_FACE);
+         return true;
+      case HEXEN_VISIBILITY_SCISSOR:
+         if (!glIsEnabled(GL_SCISSOR_TEST))
+            return false;
+         glDisable(GL_SCISSOR_TEST);
+         return true;
+      default:
+         return false;
+   }
+}
+
 void vbo_draw(void)
 {
+   enum glide64_hexen_visibility bypass;
+   bool restore_visibility;
+
    if (!vbuf_length || vbuf_drawing)
       return;
 
    /* avoid infinite loop in sgl*BindBuffer */
    vbuf_drawing = true;
+   bypass = vbuf_hexen_triangles ? hexen_trace.bypass : HEXEN_VISIBILITY_NORMAL;
+   restore_visibility = hexen_disable_visibility_test(bypass);
 
    if (vbuf_vbo)
    {
@@ -147,6 +176,16 @@ void vbo_draw(void)
    }
    else
       glDrawArrays(vbuf_primitive, 0, vbuf_length);
+
+   if (restore_visibility)
+   {
+      if (bypass == HEXEN_VISIBILITY_DEPTH)
+         glEnable(GL_DEPTH_TEST);
+      else if (bypass == HEXEN_VISIBILITY_CULL)
+         glEnable(GL_CULL_FACE);
+      else if (bypass == HEXEN_VISIBILITY_SCISSOR)
+         glEnable(GL_SCISSOR_TEST);
+   }
 
    if (vbuf_hexen_triangles)
    {
