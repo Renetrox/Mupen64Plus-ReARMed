@@ -200,6 +200,12 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
    }
    if (zbuffer)
    {
+      static bool reported_scars_depth;
+      if (use_rdp_depth && !reported_scars_depth && strcmp(rdp.RomName, "SCARS") == 0)
+      {
+         fprintf(stderr, "[SCARS/Glide64] RDP depth applied to a Z triangle\n");
+         reported_scars_depth = true;
+      }
       z = zbuffer_base[0];
       dzdx = zbuffer_base[1];
       dzde = zbuffer_base[2];
