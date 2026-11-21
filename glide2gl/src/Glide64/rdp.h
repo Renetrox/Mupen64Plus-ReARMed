@@ -481,6 +481,8 @@ extern struct conker_shadow_trace
    unsigned isolated_passes;
    unsigned exported_masks;
    unsigned nonwhite_pixels;
+   bool mask_ready;
+   unsigned shadow_combiners;
    unsigned isolation_failures;
 } conker_shadow_trace;
 

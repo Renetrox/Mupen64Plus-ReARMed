@@ -14058,8 +14058,20 @@ void Combine(void)
          break;  // found it!
    }
 
-   // Check if we didn't find it
-   if (actual_combine != current_combine || !found)
+   /* Glide64mk2 enables this shadow combiner when the mask is available
+    * as a texture buffer. Here it is exported to RDRAM and loaded via TMEM. */
+   if (actual_combine == 0x0f0e0f0e && conker_shadow_trace.enabled &&
+         conker_shadow_trace.isolate && conker_shadow_trace.mask_ready &&
+         !conker_shadow_trace.shadow_target)
+   {
+      ACMB (GR_COMBINE_FUNCTION_BLEND_LOCAL,
+            GR_COMBINE_FACTOR_TEXTURE_ALPHA,
+            GR_COMBINE_LOCAL_ITERATED,
+            GR_COMBINE_OTHER_NONE);
+      A_USE_T0();
+      conker_shadow_trace.shadow_combiners++;
+   }
+   else if (actual_combine != current_combine || !found)
    {
 #ifdef UNIMP_LOG
       if (actual_combine != current_combine)

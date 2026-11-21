@@ -62,14 +62,14 @@ static void report_conker_shadow_trace(void)
             "[Conker/Shadow] VI=%u fb_emulation=%u addr=%06x color=%u texture=%u "
             "draws=%u draw_fbo=%d swaps=%u swap_fbo=%d shadow_swaps=%u "
             "suppress=%u skipped_draws=%u skipped_clears=%u copies=%u copy_size=%d "
-            "isolate=%u isolated=%u exported=%u nonwhite=%u failed=%u\n",
+            "isolate=%u isolated=%u exported=%u nonwhite=%u projection=%u failed=%u\n",
             trace->vi, (unsigned)fb_emulation_enabled, trace->shadow_address,
             trace->color_images, trace->texture_images, trace->draws,
             trace->draw_fbo, trace->swaps, trace->swap_fbo, trace->shadow_swaps,
             (unsigned)trace->suppress, trace->suppressed_draws, trace->suppressed_clears,
             trace->shadow_copies, trace->copy_size, (unsigned)trace->isolate,
             trace->isolated_passes, trace->exported_masks, trace->nonwhite_pixels,
-            trace->isolation_failures);
+            trace->shadow_combiners, trace->isolation_failures);
 
    *trace = (struct conker_shadow_trace){
       .enabled = trace->enabled,
@@ -77,6 +77,7 @@ static void report_conker_shadow_trace(void)
       .shadow_address = trace->shadow_address,
       .suppress = trace->suppress,
       .isolate = trace->isolate,
+      .mask_ready = trace->mask_ready,
       .draw_fbo = -1,
       .swap_fbo = -1,
       .copy_size = -1

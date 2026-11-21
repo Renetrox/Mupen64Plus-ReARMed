@@ -151,6 +151,7 @@ void glide64_conker_shadow_end(uint8_t *dst)
             conker_shadow_trace.nonwhite_pixels += intensity != 255;
          }
       }
+      conker_shadow_trace.mask_ready = true;
       conker_shadow_trace.exported_masks++;
    }
    else
