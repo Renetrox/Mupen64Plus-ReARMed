@@ -1,4 +1,5 @@
 ﻿#include <stdint.h>
+#include <stdlib.h>
 #include "Glide64_Ini.h"
 #include "Glide64_UCode.h"
 #include "rdp.h"
@@ -1111,8 +1112,12 @@ void ReadSpecialSettings (const char * name)
    }
    else if (strstr(name, (const char*)"SCARS"))
    {
+      const char *depth_test = getenv("REARMED_SCARS_DEPTH");
+
       settings.filtering = 1;
-      //depthmode = 0
+      settings.use_display_list_depth = depth_test && strcmp(depth_test, "1") == 0;
+      fprintf(stderr, "[SCARS/Glide64] depth=%s\n",
+            settings.use_display_list_depth ? "display-list" : "default");
    }
    else if (strstr(name, (const char*)"LEGORacers"))
    {
