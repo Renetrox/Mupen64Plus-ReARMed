@@ -251,6 +251,15 @@ static void uc0_setothermode_l(uint32_t w0, uint32_t w1)
    __RSP.w1 &= mask;
    gDP.otherMode.l = (gDP.otherMode.l & ~mask) | __RSP.w1;
 
+   if (settings.use_display_list_depth)
+   {
+      /* F3DEX can change depth independently of a full RDP SETOTHERMODE. */
+      g_gdp.other_modes.z_mode = gDP.otherMode.depthMode;
+      g_gdp.other_modes.z_source_sel = gDP.otherMode.depthSource;
+      if (mask & (1U << G_MDSFT_ZSRCSEL))
+         g_gdp.flags |= UPDATE_ZBUF_ENABLED;
+   }
+
    if (mask & RDP_ALPHA_COMPARE) // alpha compare
       g_gdp.flags |= UPDATE_ALPHA_COMPARE;
 
