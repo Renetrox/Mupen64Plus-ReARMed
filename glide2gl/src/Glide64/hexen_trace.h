@@ -17,6 +17,7 @@ struct glide64_hexen_trace
    bool enabled;
    bool drawing_triangle;
    bool clear_depth_on_swap;
+   bool use_display_list_depth;
    enum glide64_hexen_visibility bypass;
    unsigned vi_count;
    unsigned f3dex_triangles;

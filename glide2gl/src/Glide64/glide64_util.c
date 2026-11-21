@@ -1023,9 +1023,14 @@ static void glide64_z_compare(void)
    int depthbias_level = 0;
    int depthbuf_func   = GR_CMP_ALWAYS;
    int depthmask_val   = FXFALSE;
+   const bool depth_enabled = (rdp.flags & ZBUF_ENABLED) != 0;
+   const bool primitive_depth = g_gdp.other_modes.z_source_sel == G_ZS_PRIM;
+   const bool drawing_cycle = ((gDP.otherMode.h & RDP_CYCLE_TYPE) >> 20) < G_CYC_COPY;
    g_gdp.flags ^= UPDATE_ZBUF_ENABLED;
 
-   if (((rdp.flags & ZBUF_ENABLED) || ((g_gdp.other_modes.z_source_sel == G_ZS_PRIM) && (((gDP.otherMode.h & RDP_CYCLE_TYPE) >> 20) < G_CYC_COPY))))
+   if ((hexen_trace.enabled && hexen_trace.use_display_list_depth)
+         ? (depth_enabled || primitive_depth) && drawing_cycle
+         : depth_enabled || (primitive_depth && drawing_cycle))
    {
       if (rdp.flags & ZBUF_COMPARE)
       {
