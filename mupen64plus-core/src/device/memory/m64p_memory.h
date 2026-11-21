@@ -28,7 +28,9 @@
 #include "osal/preproc.h"
 
 enum { RDRAM_MAX_SIZE = 0x800000 };
-enum { CART_ROM_MAX_SIZE = 0x4000000 };
+enum { CART_ROM_LEGACY_SIZE = 0x4000000 };
+/* CPU cartridge space is 0x10000000 through 0x1fbfffff. */
+enum { CART_ROM_MAX_SIZE = 0xfc00000 };
 enum { DD_ROM_MAX_SIZE = 0x400000 };
 
 typedef void (*read32fn)(void*,uint32_t,uint32_t*);
@@ -97,6 +99,8 @@ void apply_mem_mapping(struct memory* mem, const struct mem_mapping* mapping);
 
 void* init_mem_base(void);
 void release_mem_base(void* mem_base);
+int prepare_cart_rom_memory(void* mem_base, uint32_t size);
+void release_cart_rom_memory(void);
 uint32_t* mem_base_u32(void* mem_base, uint32_t address);
 
 void read_with_bp_checks(void* opaque, uint32_t address, uint32_t* value);

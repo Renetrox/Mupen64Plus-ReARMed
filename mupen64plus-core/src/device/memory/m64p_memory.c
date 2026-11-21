@@ -41,6 +41,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if defined(_WIN32) || defined(HAVE_LIBNX)
 #include <malloc.h>
@@ -224,7 +225,7 @@ enum { MB_RDRAM_DRAM_ALIGNMENT_REQUIREMENT = 64 * 1024 };
 enum {
     MB_RDRAM_DRAM = 0,
     MB_CART_ROM = MB_RDRAM_DRAM + RDRAM_MAX_SIZE,
-    MB_RSP_MEM  = MB_CART_ROM   + CART_ROM_MAX_SIZE,
+    MB_RSP_MEM  = MB_CART_ROM   + CART_ROM_LEGACY_SIZE,
     MB_DD_ROM   = MB_RSP_MEM    + SP_MEM_SIZE,
     MB_PIF_MEM  = MB_DD_ROM     + DD_ROM_MAX_SIZE,
     MB_MAX_SIZE = MB_PIF_MEM    + PIF_ROM_SIZE + PIF_RAM_SIZE,
@@ -237,6 +238,32 @@ enum {
 #define MEM_BASE_MODE(mem_base) ((uintptr_t)(mem_base) & 0x1)
 #define MEM_BASE_PTR(mem_base)  ((void*)((uintptr_t)(mem_base) & ~0x1))
 #define SET_MEM_BASE_MODE(mem_base) (mem_base = (void*)((uintptr_t)(mem_base) | 0x1))
+
+static uint8_t* extended_cart_rom;
+static uint32_t extended_cart_capacity;
+
+int prepare_cart_rom_memory(void* mem_base, uint32_t size)
+{
+    if (MEM_BASE_MODE(mem_base) != 0 && size > CART_ROM_LEGACY_SIZE)
+    {
+        /* The CPU memory map installs handlers in 64 KiB pages. */
+        const uint32_t capacity = (size + 0xffffu) & ~0xffffu;
+        uint8_t* rom = (uint8_t*)malloc(capacity);
+        if (rom == NULL)
+            return 0;
+        memset(rom + size, 0, capacity - size);
+        extended_cart_rom = rom;
+        extended_cart_capacity = capacity;
+    }
+    return 1;
+}
+
+void release_cart_rom_memory(void)
+{
+    free(extended_cart_rom);
+    extended_cart_rom = NULL;
+    extended_cart_capacity = 0;
+}
 
 void* init_mem_base(void)
 {
@@ -275,6 +302,7 @@ void* init_mem_base(void)
 
 void release_mem_base(void* mem_base)
 {
+    release_cart_rom_memory();
 #ifdef _WIN32
     if (MEM_BASE_MODE(mem_base) == 0)
         _aligned_free(MEM_BASE_PTR(mem_base));
@@ -302,7 +330,11 @@ uint32_t* mem_base_u32(void* mem_base, uint32_t address)
             if ((address & UINT32_C(0xfff00000)) == MM_PIF_MEM) {
                 mem = (uint32_t*)((uint8_t*)mem_base + (address - MM_PIF_MEM + MB_PIF_MEM));
             } else {
-                mem = (uint32_t*)((uint8_t*)mem_base + (address - MM_CART_ROM + MB_CART_ROM));
+                const uint32_t offset = address - MM_CART_ROM;
+                if (extended_cart_rom != NULL)
+                    mem = offset < extended_cart_capacity ? (uint32_t*)(extended_cart_rom + offset) : NULL;
+                else
+                    mem = (uint32_t*)((uint8_t*)mem_base + MB_CART_ROM + offset);
             }
         }
         else if ((address & UINT32_C(0xfe000000)) ==  MM_DD_ROM) {

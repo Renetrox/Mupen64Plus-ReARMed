@@ -3141,6 +3141,14 @@ bool retro_load_game(const struct retro_game_info *game)
       }
       else if (is_cartridge_rom(game_data))
       {
+         if (game_size > CART_ROM_MAX_SIZE)
+         {
+            if (log_cb)
+               log_cb(RETRO_LOG_ERROR, "Cartridge ROM exceeds the supported size (252 MiB)\n");
+            free(file_buf);
+            return false;
+         }
+
          /* Take ownership of the buffer the read already produced rather than
           * allocating a second one the size of the rom and copying across;
           * both are released with free(). */
