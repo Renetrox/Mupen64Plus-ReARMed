@@ -848,6 +848,13 @@ static void rdp_texrect(uint32_t w0, uint32_t w1)
    CCLIP2 (s_ul_x, s_lr_x, texUV[0].ul_u, texUV[0].lr_u, texUV[1].ul_u, texUV[1].lr_u, (float)rdp.scissor.ul_x, (float)rdp.scissor.lr_x);
    CCLIP2 (s_ul_y, s_lr_y, texUV[0].ul_v, texUV[0].lr_v, texUV[1].ul_v, texUV[1].lr_v, (float)rdp.scissor.ul_y, (float)rdp.scissor.lr_y);
 
+   if (scars_panel_budget && rdp.scale_x > 0 && rdp.scale_y > 0)
+      glide64_scars_panel_draw("texrect",
+            (s_ul_x - rdp.offset_x) / rdp.scale_x,
+            (s_ul_y - rdp.offset_y) / rdp.scale_y,
+            (s_lr_x - rdp.offset_x) / rdp.scale_x,
+            (s_lr_y - rdp.offset_y) / rdp.scale_y, w0, w1);
+
    vstd[0].x        = s_ul_x;
    vstd[0].y        = s_ul_y;
    vstd[0].z        = Z;
@@ -1227,6 +1234,9 @@ static void rdp_fillrect(uint32_t w0, uint32_t w1)
    /* Wrong coordinates. Skipped */
    if (lr_x < ul_x || lr_y < ul_y)
       return;
+
+   if (scars_panel_budget)
+      glide64_scars_panel_draw("fillrect", ul_x, ul_y, lr_x, lr_y, w0, w1);
 
    glide64gDPFillRectangle(ul_x, ul_y, lr_x, lr_y);
 }

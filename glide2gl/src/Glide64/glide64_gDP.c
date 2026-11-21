@@ -447,6 +447,20 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
          g_gdp.flags |= UPDATE_ZBUF_ENABLED;
       }
 
+      if (scars_panel_budget && vn > 3)
+      {
+         float left = vtxbuf[0].x, right = left;
+         float top = vtxbuf[0].y, bottom = top;
+         for (k = 1; k < vn - 1; k++)
+         {
+            left = MIN(left, vtxbuf[k].x);
+            right = MAX(right, vtxbuf[k].x);
+            top = MIN(top, vtxbuf[k].y);
+            bottom = MAX(bottom, vtxbuf[k].y);
+         }
+         glide64_scars_panel_draw("triangle", left, top, right, bottom, w0, w1);
+      }
+
       for (k = 0; k < vn-1; k++)
       {
          VERTEX * v = (VERTEX*)&vtxbuf[k];

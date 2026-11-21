@@ -51,6 +51,31 @@
 #include "../../../Graphics/RDP/gDP_funcs_C.h"
 
 extern retro_log_printf_t log_cb;
+
+unsigned scars_panel_budget;
+static bool scars_panel_trace;
+static unsigned scars_panel_vi;
+
+void glide64_scars_panel_draw(const char *kind, float left, float top,
+      float right, float bottom, uint32_t w0, uint32_t w1)
+{
+   /* The stats sit in the upper-left quadrant of the native VI image.
+    * Ignore large primitives covering the panel from behind. */
+   if (!scars_panel_budget || left > rdp.vi_width * 0.38f ||
+         right < rdp.vi_width * 0.04f || top > rdp.vi_height * 0.58f ||
+         bottom < rdp.vi_height * 0.36f ||
+         bottom - top > rdp.vi_height * 0.16f)
+      return;
+
+   scars_panel_budget--;
+   fprintf(stderr, "[SCARS/Panel] %s bounds=%.2f,%.2f:%.2f,%.2f "
+         "cmd=%08x,%08x mode=%08x cycle=%u mux=%08x,%08x ti=%06x "
+         "clip=%u,%u:%u,%u\n",
+         kind, left, top, right, bottom, w0, w1, gDP.otherMode.l,
+         (unsigned)gDP.otherMode.cycleType, rdp.cycle1, rdp.cycle2,
+         g_gdp.ti_address, g_gdp.__clip.xh, g_gdp.__clip.yh,
+         g_gdp.__clip.xl, g_gdp.__clip.yl);
+}
 struct conker_shadow_state conker_shadow;
 extern uint32_t screen_aspectmodehint;
 
@@ -578,6 +603,10 @@ int glide64RomOpen (void)
       name[strlen(name)-1] = 0;
 
    strncpy(rdp.RomName, name, sizeof(name));
+   const char *panel_trace = getenv("REARMED_SCARS_PANEL_TRACE");
+   scars_panel_trace = strcmp(name, "SCARS") == 0 &&
+      panel_trace && strcmp(panel_trace, "1") == 0;
+   scars_panel_vi = scars_panel_budget = 0;
    conker_shadow = (struct conker_shadow_state){
       .enabled = strcmp(name, "CONKER BFD") == 0
    };
@@ -630,6 +659,20 @@ int retro_return(bool a);
 void glide64UpdateScreen (void)
 {
    bool forced_update = false;
+
+   if (scars_panel_trace)
+   {
+      if (scars_panel_vi && scars_panel_vi % 120 == 0)
+         fprintf(stderr, "[SCARS/Panel] end VI=%u capped=%u\n",
+               scars_panel_vi, (unsigned)(scars_panel_budget == 0));
+      scars_panel_budget = 0;
+      if (++scars_panel_vi % 120 == 0)
+      {
+         scars_panel_budget = 192;
+         fprintf(stderr, "[SCARS/Panel] begin VI=%u size=%.0fx%.0f\n",
+               scars_panel_vi, (double)rdp.vi_width, (double)rdp.vi_height);
+      }
+   }
 
    /* Official Glide64mk2 frameskip updates its scheduler on each VI and
     * applies the decision to the following graphics display list. */

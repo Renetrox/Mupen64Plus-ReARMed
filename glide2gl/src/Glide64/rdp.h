@@ -460,6 +460,10 @@ struct RDP
 
 extern struct RDP rdp;
 
+extern unsigned scars_panel_budget;
+void glide64_scars_panel_draw(const char *kind, float left, float top,
+      float right, float bottom, uint32_t w0, uint32_t w1);
+
 /* Conker renders its dynamic shadow to this 64x64 8-bit image in RDRAM. */
 #define CONKER_SHADOW_ADDRESS 0x0de080u
 #define CONKER_SHADOW_SIZE 64
