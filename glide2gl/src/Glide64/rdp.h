@@ -475,6 +475,12 @@ extern struct nightmare_render_trace {
    unsigned triangles;
    unsigned buffer_copies;
    unsigned zscreen;
+   unsigned hle_calls;
+   unsigned hle_skipped;
+   unsigned rdp_lists;
+   unsigned rdp_triangles;
+   unsigned vi_draws;
+   unsigned swaps;
 } nightmare_trace;
 extern SETTINGS settings;
 extern VOODOO voodoo;

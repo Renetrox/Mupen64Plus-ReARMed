@@ -56,8 +56,11 @@ struct nightmare_render_trace nightmare_trace;
 static void report_nightmare_render_trace(void)
 {
    log_cb(RETRO_LOG_INFO,
-         "[Nightmare/Render] VI=%u swap=%d lists=%u classified=%u aux_targets=%u aux_triangles=%u triangles=%u copies=%u ZSCREEN=%u\n",
-         nightmare_trace.vi, settings.swapmode, nightmare_trace.lists,
+         "[Nightmare/Render] VI=%u swap=%d hle_calls=%u hle_skipped=%u lists=%u rdp_lists=%u rdp_triangles=%u vi_draws=%u swaps=%u "
+         "classified=%u aux_targets=%u aux_triangles=%u triangles=%u copies=%u ZSCREEN=%u\n",
+         nightmare_trace.vi, settings.swapmode, nightmare_trace.hle_calls,
+         nightmare_trace.hle_skipped, nightmare_trace.lists, nightmare_trace.rdp_lists,
+         nightmare_trace.rdp_triangles, nightmare_trace.vi_draws, nightmare_trace.swaps,
          nightmare_trace.classified_lists, nightmare_trace.aux_targets,
          nightmare_trace.aux_triangles, nightmare_trace.triangles,
          nightmare_trace.buffer_copies, nightmare_trace.zscreen);
@@ -678,7 +681,11 @@ void glide64UpdateScreen (void)
          ChangeSize();
          LRDP("ChangeSize done\n");
          if (rdp.vi_height != 0)
+         {
+            if (nightmare_trace.enabled)
+               nightmare_trace.vi_draws++;
             drawViRegBG();
+         }
          rdp.updatescreen = 1;
          forced_update = true;
       }
@@ -717,6 +724,8 @@ void newSwapBuffers(void)
       DrawWholeFrameBufferToScreen();
 
    {
+      if (nightmare_trace.enabled)
+         nightmare_trace.swaps++;
       grBufferSwap (settings.vsync);
 
       if  (settings.buff_clear || (settings.hacks & hack_PPL && settings.ucode == 6))

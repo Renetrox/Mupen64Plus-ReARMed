@@ -327,8 +327,13 @@ void glide64ProcessDList(void)
 {
   uint32_t dlist_start, dlist_length, a;
 
+  if (nightmare_trace.enabled)
+    nightmare_trace.hle_calls++;
+
   if (glide64_frameskip_will_skip_next())
   {
+    if (nightmare_trace.enabled)
+      nightmare_trace.hle_skipped++;
     /* MI_INTR_DP == 0x20. Preserve task completion while avoiding the costly
      * display-list parsing/rendering work for this frame. */
     *gfx_info.MI_INTR_REG |= 0x20;
@@ -2160,6 +2165,9 @@ static void glide64ProcessRDPList_internal(void)
    if (dp_end <= dp_current)
       return;
 
+   if (nightmare_trace.enabled)
+      nightmare_trace.rdp_lists++;
+
    (*(uint32_t*)gfx_info.DPC_STATUS_REG) &= ~0x0002;
 
    __RSP.bLLE = true;
@@ -2196,6 +2204,9 @@ static void glide64ProcessRDPList_internal(void)
       w0       = __RSP.w0;
       w1       = __RSP.w1;
 
+      /* RDP triangle opcodes span 0x08 through 0x0f. */
+      if (nightmare_trace.enabled && cmd >= 0x08 && cmd <= 0x0f)
+         nightmare_trace.rdp_triangles++;
       rdp_command_table[cmd](w0, w1);
 
       __RDP.cmd_cur = (__RDP.cmd_cur + rdp_command_length[cmd] / 4) & MAXCMD_MASK;
