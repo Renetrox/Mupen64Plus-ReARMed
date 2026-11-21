@@ -123,9 +123,12 @@ void ReadSpecialSettings (const char * name)
    settings.hacks = 0;
    settings.use_display_list_depth = strcmp(name, "HEXEN") == 0;
    settings.nightmare_mix_test = NIGHTMARE_MIX_NORMAL;
+   settings.nightmare_rdp_depth_test = false;
    if (strcmp(name, "NIGHTMARE CREATURES") == 0)
    {
       const char *test = getenv("REARMED_NIGHTMARE_MIX_TEST");
+      const char *depth_test = getenv("REARMED_NIGHTMARE_RDP_DEPTH");
+      settings.nightmare_rdp_depth_test = depth_test && strcmp(depth_test, "1") == 0;
       if (test && strcmp(test, "current-color") == 0)
          settings.nightmare_mix_test = NIGHTMARE_MIX_CURRENT_COLOR;
       else if (test && strcmp(test, "skip-vi-gate") == 0)

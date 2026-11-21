@@ -57,13 +57,14 @@ static void report_nightmare_render_trace(void)
 {
    log_cb(RETRO_LOG_INFO,
          "[Nightmare/Render] VI=%u swap=%d hle_calls=%u hle_skipped=%u lists=%u rdp_lists=%u rdp_triangles=%u vi_draws=%u swaps=%u "
-         "classified=%u aux_targets=%u aux_triangles=%u triangles=%u copies=%u ZSCREEN=%u\n",
+         "classified=%u aux_targets=%u aux_triangles=%u triangles=%u copies=%u ZSCREEN=%u rdp_depth=%u\n",
          nightmare_trace.vi, settings.swapmode, nightmare_trace.hle_calls,
          nightmare_trace.hle_skipped, nightmare_trace.lists, nightmare_trace.rdp_lists,
          nightmare_trace.rdp_triangles, nightmare_trace.vi_draws, nightmare_trace.swaps,
          nightmare_trace.classified_lists, nightmare_trace.aux_targets,
          nightmare_trace.aux_triangles, nightmare_trace.triangles,
-         nightmare_trace.buffer_copies, nightmare_trace.zscreen);
+         nightmare_trace.buffer_copies, nightmare_trace.zscreen,
+         (unsigned)settings.nightmare_rdp_depth_test);
    nightmare_trace = (struct nightmare_render_trace){ .enabled = true };
 }
 extern uint32_t screen_aspectmodehint;

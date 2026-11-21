@@ -5,6 +5,7 @@
 #include "Util.h"
 
 #include "../../Graphics/RDP/gDP_state.h"
+#include "../../Graphics/RSP/RSP_state.h"
 
 void apply_shading(void *data);
 
@@ -76,7 +77,6 @@ float set_sprite_combine_mode(void)
 
 #define XSCALE(x) ((float)(x)/(1<<18))
 #define YSCALE(y) ((float)(y)/(1<<2))
-#define ZSCALE(z) ((g_gdp.other_modes.z_source_sel == G_ZS_PRIM) ? (float)(g_gdp.prim_color.z) : (float)((uint32_t)(z))/0xffff0000)
 #define PERSP_EN  ((gDP.otherMode.texturePersp))
 #define WSCALE(z) 1.0f/(PERSP_EN? ((float)((uint32_t)(z) + 0x10000)/0xffff0000) : 1.0f)
 #define CSCALE(c) (((c)>0x3ff0000? 0x3ff0000:((c)<0? 0 : (c)))>>18)
@@ -84,6 +84,19 @@ float set_sprite_combine_mode(void)
 #define PERSP(s, w) ( ((int64_t)(s) << 20) / (_PERSP(w)? _PERSP(w):1) )
 #define SSCALE(s, _w) (PERSP_EN ? (float)(PERSP(s, _w))/(1 << 10) : (float)(s)/(1<<21))
 #define TSCALE(s, w)  (PERSP_EN ? (float)(PERSP(s, w))/(1 << 10) : (float)(s)/(1<<21))
+
+static float rdp_triangle_z(int32_t z, bool depth_test, bool zbuffer)
+{
+   if (g_gdp.other_modes.z_source_sel == G_ZS_PRIM)
+      return depth_test ? ScaleZ(g_gdp.prim_color.z) : (float)g_gdp.prim_color.z;
+   if (depth_test && zbuffer)
+   {
+      /* The RDP's 18-bit depth comes from the accumulator shifted by 13.
+       * Glitch64 expects a depth on the 16-bit Glide scale. */
+      return MIN((float)MAX(z, 0) / 32768.0f, 65535.0f);
+   }
+   return (float)(uint32_t)z / 0xffff0000;
+}
 
 static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int texture, int zbuffer, uint32_t *rdp_cmd)
 {
@@ -108,6 +121,7 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
    int drdx = 0, dgdx = 0, dbdx = 0, dadx = 0, dzdx = 0, dsdx = 0, dtdx = 0, dwdx = 0;
    int drde = 0, dgde = 0, dbde = 0, dade = 0, dzde = 0, dsde = 0, dtde = 0, dwde = 0;
    int flip = (w0 & 0x800000) ? 1 : 0;
+   const bool depth_test = __RSP.bLLE && settings.nightmare_rdp_depth_test;
    uint32_t * shade_base = rdp_cmd + 8;
    uint32_t * texture_base = rdp_cmd + 8;
    uint32_t * zbuffer_base = rdp_cmd + 8;
@@ -251,7 +265,7 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
          }
          vtx->x = XSCALE(xleft);
          vtx->y = YSCALE(yh);
-         vtx->z = ZSCALE(z+dzdx*dx);
+         vtx->z = rdp_triangle_z(z + dzdx * dx, depth_test, zbuffer);
          vtx->w = WSCALE(w+dwdx*dx);
          vtx = &vtxbuf[vn++];
       }
@@ -270,7 +284,7 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
          }
          vtx->x = XSCALE(xright);
          vtx->y = YSCALE(yh);
-         vtx->z = ZSCALE(z);
+         vtx->z = rdp_triangle_z(z, depth_test, zbuffer);
          vtx->w = WSCALE(w);
          vtx = &vtxbuf[vn++];
       }
@@ -311,7 +325,7 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
          }
          vtx->x = XSCALE(xleft);
          vtx->y = YSCALE(ym);
-         vtx->z = ZSCALE(z+dzdx*dx);
+         vtx->z = rdp_triangle_z(z + dzdx * dx, depth_test, zbuffer);
          vtx->w = WSCALE(w+dwdx*dx);
          vtx = &vtxbuf[vn++];
       }
@@ -330,7 +344,7 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
          }
          vtx->x = XSCALE(xright);
          vtx->y = YSCALE(ym);
-         vtx->z = ZSCALE(z);
+         vtx->z = rdp_triangle_z(z, depth_test, zbuffer);
          vtx->w = WSCALE(w);
          vtx = &vtxbuf[vn++];
       }
@@ -387,7 +401,7 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
          }
          vtx->x = XSCALE(xleft);
          vtx->y = YSCALE(yl);
-         vtx->z = ZSCALE(z+dzdx*dx);
+         vtx->z = rdp_triangle_z(z + dzdx * dx, depth_test, zbuffer);
          vtx->w = WSCALE(w+dwdx*dx);
          vtx = &vtxbuf[vn++];
       }
@@ -406,7 +420,7 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
          }
          vtx->x = XSCALE(xright);
          vtx->y = YSCALE(yl);
-         vtx->z = ZSCALE(z);
+         vtx->z = rdp_triangle_z(z, depth_test, zbuffer);
          vtx->w = WSCALE(w);
          vtx = &vtxbuf[vn++];
       }
@@ -415,8 +429,23 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
    //if (fullscreen)
    {
       int k;
+      const uint32_t saved_zbuf = rdp.flags & ZBUF_ENABLED;
+
+      if (depth_test)
+      {
+         /* The RDP triangle opcode supplies Z in LLE. Geometry-mode
+          * commands only set this flag when processing HLE lists. */
+         rdp.flags = (rdp.flags & ~ZBUF_ENABLED) | (zbuffer ? ZBUF_ENABLED : 0);
+         g_gdp.flags |= UPDATE_ZBUF_ENABLED;
+      }
 
       update ();
+
+      if (depth_test)
+      {
+         rdp.flags = (rdp.flags & ~ZBUF_ENABLED) | saved_zbuf;
+         g_gdp.flags |= UPDATE_ZBUF_ENABLED;
+      }
 
       for (k = 0; k < vn-1; k++)
       {
