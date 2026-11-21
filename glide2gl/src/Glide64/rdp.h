@@ -458,6 +458,20 @@ struct RDP
 
 
 extern struct RDP rdp;
+
+/* Conker renders its dynamic shadow to this 64x64 8-bit image in RDRAM. */
+#define CONKER_SHADOW_ADDRESS 0x0de080u
+#define CONKER_SHADOW_SIZE 64
+
+extern struct conker_shadow_state
+{
+   bool enabled;
+   bool target;
+   bool mask_ready;
+} conker_shadow;
+
+void glide64_conker_shadow_begin(void);
+void glide64_conker_shadow_end(uint8_t *dst);
 extern SETTINGS settings;
 extern VOODOO voodoo;
 

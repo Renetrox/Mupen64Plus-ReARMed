@@ -14058,8 +14058,18 @@ void Combine(void)
          break;  // found it!
    }
 
-   // Check if we didn't find it
-   if (actual_combine != current_combine || !found)
+   /* Glide64mk2 enables this projection with a texture buffer. Our mask
+    * reaches the combiner through the normal RDRAM and TMEM texture path. */
+   if (actual_combine == 0x0f0e0f0e && conker_shadow.mask_ready &&
+         !conker_shadow.target)
+   {
+      ACMB (GR_COMBINE_FUNCTION_BLEND_LOCAL,
+            GR_COMBINE_FACTOR_TEXTURE_ALPHA,
+            GR_COMBINE_LOCAL_ITERATED,
+            GR_COMBINE_OTHER_NONE);
+      A_USE_T0();
+   }
+   else if (actual_combine != current_combine || !found)
    {
 #ifdef UNIMP_LOG
       if (actual_combine != current_combine)

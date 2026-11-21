@@ -51,6 +51,7 @@
 #include "../../../Graphics/RDP/gDP_funcs_C.h"
 
 extern retro_log_printf_t log_cb;
+struct conker_shadow_state conker_shadow;
 extern uint32_t screen_aspectmodehint;
 
 #if defined(__GNUC__)
@@ -577,6 +578,9 @@ int glide64RomOpen (void)
       name[strlen(name)-1] = 0;
 
    strncpy(rdp.RomName, name, sizeof(name));
+   conker_shadow = (struct conker_shadow_state){
+      .enabled = strcmp(name, "CONKER BFD") == 0
+   };
    ReadSpecialSettings (name);
    ClearCache ();
 
@@ -686,6 +690,9 @@ void newSwapBuffers(void)
       return;
 
    rdp.updatescreen = 0;
+
+   if (conker_shadow.target)
+      glide64_conker_shadow_end(gfx_info.RDRAM + CONKER_SHADOW_ADDRESS);
 
    g_gdp.flags |= UPDATE_SCISSOR | UPDATE_COMBINE | UPDATE_ZBUF_ENABLED | UPDATE_CULL_MODE;
    grClipWindow (0, 0, settings.scr_res_x, settings.scr_res_y);
