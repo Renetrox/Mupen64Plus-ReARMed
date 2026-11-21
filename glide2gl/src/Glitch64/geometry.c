@@ -283,6 +283,11 @@ void grDrawVertexArrayContiguous(uint32_t mode, uint32_t count, void *pointers)
    {
       if (conker_shadow_trace.draws++ == 0)
          glGetIntegerv(GL_FRAMEBUFFER_BINDING, &conker_shadow_trace.draw_fbo);
+      if (conker_shadow_trace.suppress)
+      {
+         conker_shadow_trace.suppressed_draws++;
+         return;
+      }
    }
 
    if(need_to_compile)

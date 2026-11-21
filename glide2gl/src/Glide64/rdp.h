@@ -472,6 +472,11 @@ extern struct conker_shadow_trace
    unsigned shadow_swaps;
    int32_t draw_fbo;
    int32_t swap_fbo;
+   bool suppress;
+   unsigned suppressed_draws;
+   unsigned suppressed_clears;
+   unsigned shadow_copies;
+   int copy_size;
 } conker_shadow_trace;
 extern SETTINGS settings;
 extern VOODOO voodoo;

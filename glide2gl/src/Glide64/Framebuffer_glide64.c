@@ -1028,6 +1028,13 @@ void CopyFrameBuffer(int32_t buffer)
          return;
    }
 
+   if (conker_shadow_trace.enabled && conker_shadow_trace.shadow_address &&
+         gDP.colorImage.address == conker_shadow_trace.shadow_address)
+   {
+      conker_shadow_trace.shadow_copies++;
+      conker_shadow_trace.copy_size = g_gdp.fb_size;
+   }
+
    if (rdp.scale_x < 1.1f)
    {
       uint16_t * ptr_src = (uint16_t*)glide64_frameBuffer;

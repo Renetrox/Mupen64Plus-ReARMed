@@ -60,17 +60,22 @@ static void report_conker_shadow_trace(void)
    if (log_cb)
       log_cb(RETRO_LOG_INFO,
             "[Conker/Shadow] VI=%u fb_emulation=%u addr=%06x color=%u texture=%u "
-            "draws=%u draw_fbo=%d swaps=%u swap_fbo=%d shadow_swaps=%u\n",
+            "draws=%u draw_fbo=%d swaps=%u swap_fbo=%d shadow_swaps=%u "
+            "suppress=%u skipped_draws=%u skipped_clears=%u copies=%u copy_size=%d\n",
             trace->vi, (unsigned)fb_emulation_enabled, trace->shadow_address,
             trace->color_images, trace->texture_images, trace->draws,
-            trace->draw_fbo, trace->swaps, trace->swap_fbo, trace->shadow_swaps);
+            trace->draw_fbo, trace->swaps, trace->swap_fbo, trace->shadow_swaps,
+            (unsigned)trace->suppress, trace->suppressed_draws, trace->suppressed_clears,
+            trace->shadow_copies, trace->copy_size);
 
    *trace = (struct conker_shadow_trace){
       .enabled = trace->enabled,
       .shadow_target = trace->shadow_target,
       .shadow_address = trace->shadow_address,
+      .suppress = trace->suppress,
       .draw_fbo = -1,
-      .swap_fbo = -1
+      .swap_fbo = -1,
+      .copy_size = -1
    };
 }
 extern uint32_t screen_aspectmodehint;
@@ -605,8 +610,14 @@ int glide64RomOpen (void)
    conker_shadow_trace = (struct conker_shadow_trace){
       .enabled = log_cb && strcmp(name, "CONKER BFD") == 0,
       .draw_fbo = -1,
-      .swap_fbo = -1
+      .swap_fbo = -1,
+      .copy_size = -1
    };
+   if (conker_shadow_trace.enabled)
+   {
+      const char *suppress = getenv("REARMED_CONKER_SKIP_SHADOW_DRAW");
+      conker_shadow_trace.suppress = suppress && strcmp(suppress, "1") == 0;
+   }
    ReadSpecialSettings (name);
    ClearCache ();
 

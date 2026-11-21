@@ -307,6 +307,12 @@ void grClipWindow(uint32_t minx, uint32_t miny, uint32_t maxx, uint32_t maxy)
 
 void grBufferClear(uint32_t color, uint32_t alpha, uint32_t depth)
 {
+   if (conker_shadow_trace.enabled && conker_shadow_trace.shadow_target && conker_shadow_trace.suppress)
+   {
+      conker_shadow_trace.suppressed_clears++;
+      return;
+   }
+
    glClearColor(((color >> 24) & 0xFF) / 255.0f,
          ((color >> 16) & 0xFF) / 255.0f,
          (color         & 0xFF) / 255.0f,

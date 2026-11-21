@@ -1524,6 +1524,7 @@ static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
    if (conker_shadow_trace.enabled)
    {
       conker_shadow_trace.shadow_target =
+         gDP.colorImage.address == 0x0de080 &&
          gDP.colorImage.width == 64 && g_gdp.fb_size == G_IM_SIZ_8b;
       if (conker_shadow_trace.shadow_target)
       {
