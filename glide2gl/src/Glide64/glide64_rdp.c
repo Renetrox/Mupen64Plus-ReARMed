@@ -1553,7 +1553,9 @@ static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
       if (g_gdp.zb_address == gDP.colorImage.address)
          rdp.updatescreen = 1;
 
-      viSwapOK = ((settings.swapmode == 2) && (rdp.vi_org_reg == *gfx_info.VI_ORIGIN_REG)) ? false : true;
+      viSwapOK = settings.swapmode != 2
+         || settings.nightmare_mix_test == NIGHTMARE_MIX_SKIP_VI_GATE
+         || rdp.vi_org_reg != *gfx_info.VI_ORIGIN_REG;
       if ((g_gdp.zb_address != gDP.colorImage.address) && (rdp.ocimg != gDP.colorImage.address) && SwapOK && viSwapOK
             )
       {
@@ -1561,7 +1563,9 @@ static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
             rdp.maincimg[0] = rdp.frame_buffers[rdp.main_ci_index];
          else
             rdp.maincimg[0].addr = gDP.colorImage.address;
-         rdp.last_drawn_ci_addr = (settings.swapmode == 2) ? swapped_addr : rdp.maincimg[0].addr;
+         rdp.last_drawn_ci_addr = (settings.swapmode == 2
+               && settings.nightmare_mix_test != NIGHTMARE_MIX_CURRENT_COLOR)
+            ? swapped_addr : rdp.maincimg[0].addr;
          swapped_addr = gDP.colorImage.address;
          newSwapBuffers();
          rdp.vi_org_reg = *gfx_info.VI_ORIGIN_REG;

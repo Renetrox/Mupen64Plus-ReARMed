@@ -4,6 +4,7 @@
 #include "rdp.h"
 #include "Framebuffer_glide64.h"
 
+#include <stdlib.h>
 #include <libretro.h>
 #include "../../libretro/libretro_private.h"
 
@@ -121,6 +122,17 @@ void ReadSpecialSettings (const char * name)
 
    settings.hacks = 0;
    settings.use_display_list_depth = strcmp(name, "HEXEN") == 0;
+   settings.nightmare_mix_test = NIGHTMARE_MIX_NORMAL;
+   if (strcmp(name, "NIGHTMARE CREATURES") == 0)
+   {
+      const char *test = getenv("REARMED_NIGHTMARE_MIX_TEST");
+      if (test && strcmp(test, "current-color") == 0)
+         settings.nightmare_mix_test = NIGHTMARE_MIX_CURRENT_COLOR;
+      else if (test && strcmp(test, "skip-vi-gate") == 0)
+         settings.nightmare_mix_test = NIGHTMARE_MIX_SKIP_VI_GATE;
+      if (settings.nightmare_mix_test != NIGHTMARE_MIX_NORMAL)
+         fprintf(stderr, "[Nightmare/Glide64] Mix test: %s (requires Buffer Swap Mode = Mix)\n", test);
+   }
 
    // We might want to detect some games by ucode crc, so set
    // up uc_crc here

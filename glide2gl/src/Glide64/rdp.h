@@ -195,6 +195,11 @@ typedef struct
    int fog;
    int buff_clear;
    int swapmode;
+   enum {
+      NIGHTMARE_MIX_NORMAL,
+      NIGHTMARE_MIX_CURRENT_COLOR,
+      NIGHTMARE_MIX_SKIP_VI_GATE
+   } nightmare_mix_test;
    int lodmode;
    int aspectmode;
 
