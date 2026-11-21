@@ -232,7 +232,11 @@ typedef struct
    uint32_t hacks;
    bool use_rdp_triangle_depth;
    bool scars_opaque_test;
-   bool scars_zcompare_test;
+   enum {
+      SCARS_DEPTH_DEFAULT,
+      SCARS_DEPTH_COMPARE,
+      SCARS_DEPTH_COMPARE_WRITE
+   } scars_depth_probe;
 } SETTINGS;
 
 typedef struct

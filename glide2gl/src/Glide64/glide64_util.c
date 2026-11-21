@@ -1059,17 +1059,24 @@ static void glide64_z_compare(void)
          depthmask_val = FXTRUE;
    }
 
-   /* Diagnostic only: test comparison for the reported blend mode while
-    * leaving the blender and the depth write mask unchanged. */
-   if (settings.scars_zcompare_test && drawing_cycle &&
+   /* Diagnostic only: compare for this render mode, and optionally honor
+    * its Z update bit without requiring the RSP geometry-mode flag. */
+   if (settings.scars_depth_probe != SCARS_DEPTH_DEFAULT && drawing_cycle &&
          (gDP.otherMode.l & ~7U) == 0x0c184260)
    {
       static bool reported;
+      const unsigned normal_write = (unsigned)depthmask_val;
+
       depthbuf_func = GR_CMP_LEQUAL;
+      if (settings.scars_depth_probe == SCARS_DEPTH_COMPARE_WRITE)
+         depthmask_val = gDP.otherMode.depthUpdate ? FXTRUE : FXFALSE;
+
       if (!reported)
       {
-         fprintf(stderr, "[SCARS/Glide64] targeted depth compare applied (zwrite=%u)\n",
-               (unsigned)depthmask_val);
+         fprintf(stderr, "[SCARS/Glide64] depth probe applied "
+               "(zwrite=%u original=%u geometry_z=%u lle=%u)\n",
+               (unsigned)depthmask_val, normal_write,
+               (unsigned)depth_enabled, (unsigned)__RSP.bLLE);
          reported = true;
       }
    }
@@ -1086,7 +1093,7 @@ void update(void)
 {
    bool set_scissor = false;
 
-   if (settings.scars_zcompare_test && rdp.render_mode_changed)
+   if (settings.scars_depth_probe != SCARS_DEPTH_DEFAULT && rdp.render_mode_changed)
       g_gdp.flags |= UPDATE_ZBUF_ENABLED;
 
    // Check for rendermode changes

@@ -123,7 +123,7 @@ void ReadSpecialSettings (const char * name)
    settings.hacks = 0;
    settings.use_display_list_depth = strcmp(name, "HEXEN") == 0;
    settings.scars_opaque_test = false;
-   settings.scars_zcompare_test = false;
+   settings.scars_depth_probe = SCARS_DEPTH_DEFAULT;
 
    settings.use_rdp_triangle_depth = strcmp(name, "NIGHTMARE CREATURES") == 0;
    if (settings.use_rdp_triangle_depth)
@@ -1121,11 +1121,14 @@ void ReadSpecialSettings (const char * name)
       settings.filtering = 1;
       settings.use_display_list_depth = depth_test && strcmp(depth_test, "1") == 0;
       settings.scars_opaque_test = opaque_test && strcmp(opaque_test, "1") == 0;
-      settings.scars_zcompare_test = zcompare_test && strcmp(zcompare_test, "1") == 0;
-      fprintf(stderr, "[SCARS/Glide64] depth=%s blend=%s zcompare=%s\n",
+      if (zcompare_test && strcmp(zcompare_test, "1") == 0)
+         settings.scars_depth_probe = SCARS_DEPTH_COMPARE;
+      else if (zcompare_test && strcmp(zcompare_test, "2") == 0)
+         settings.scars_depth_probe = SCARS_DEPTH_COMPARE_WRITE;
+      fprintf(stderr, "[SCARS/Glide64] depth=%s blend=%s depth_probe=%u\n",
             settings.use_display_list_depth ? "display-list" : "default",
             settings.scars_opaque_test ? "opaque-test" : "default",
-            settings.scars_zcompare_test ? "targeted-test" : "default");
+            (unsigned)settings.scars_depth_probe);
    }
    else if (strstr(name, (const char*)"LEGORacers"))
    {
