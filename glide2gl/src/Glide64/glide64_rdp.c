@@ -1313,6 +1313,15 @@ static void RestoreScale(void)
 
 static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
 {
+   const uint32_t color_address = RSP_SegmentToPhysical(w1);
+   const bool shadow_target = conker_shadow.enabled &&
+      color_address == CONKER_SHADOW_ADDRESS &&
+      (w0 & 0xfff) == CONKER_SHADOW_SIZE - 1 &&
+      _SHIFTR(w0, 19, 2) == G_IM_SIZ_8b;
+
+   if (conker_shadow.target && !shadow_target)
+      glide64_conker_shadow_end(gfx_info.RDRAM + CONKER_SHADOW_ADDRESS);
+
    gdp_set_color_image(w0, w1);
 
    if (fb_emulation_enabled && (rdp.num_of_ci < NUMTEXBUF))
@@ -1514,8 +1523,12 @@ static void rdp_setcolorimage(uint32_t w0, uint32_t w1)
    }
 
    rdp.ocimg              = gDP.colorImage.address;
-   gDP.colorImage.address = RSP_SegmentToPhysical(w1);
+   gDP.colorImage.address = color_address;
    gDP.colorImage.width           = (w0 & 0xFFF) + 1;
+
+   if (shadow_target && !conker_shadow.target)
+      glide64_conker_shadow_begin();
+   conker_shadow.target = shadow_target;
 
    if (fb_emulation_enabled && rdp.ci_count > 0)
       gDP.colorImage.height = rdp.frame_buffers[rdp.ci_count-1].height;
