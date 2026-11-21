@@ -1112,7 +1112,7 @@ void ReadSpecialSettings (const char * name)
    else if (strstr(name, (const char*)"SCARS"))
    {
       settings.filtering = 1;
-      //depthmode = 0
+      settings.use_rdp_triangle_depth = true;
    }
    else if (strstr(name, (const char*)"LEGORacers"))
    {
