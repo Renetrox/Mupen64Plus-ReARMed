@@ -4,6 +4,7 @@
 #include "rdp.h"
 #include "Framebuffer_glide64.h"
 
+#include <stdlib.h>
 #include <libretro.h>
 #include "../../libretro/libretro_private.h"
 
@@ -121,6 +122,13 @@ void ReadSpecialSettings (const char * name)
 
    settings.hacks = 0;
    settings.use_display_list_depth = strcmp(name, "HEXEN") == 0;
+   if (strcmp(name, "NIGHTMARE CREATURES") == 0)
+   {
+      const char *mode = getenv("REARMED_NIGHTMARE_DISPLAY_LIST_DEPTH");
+      settings.use_display_list_depth = mode && strcmp(mode, "1") == 0;
+      fprintf(stderr, "[Nightmare/Glide64] depth_mode=%s\n",
+            settings.use_display_list_depth ? "display-list" : "normal");
+   }
 
    // We might want to detect some games by ucode crc, so set
    // up uc_crc here
