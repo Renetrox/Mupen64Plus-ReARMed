@@ -120,6 +120,7 @@ void ReadSpecialSettings (const char * name)
    }
 
    settings.hacks = 0;
+   settings.use_display_list_depth = strcmp(name, "HEXEN") == 0;
 
    // We might want to detect some games by ucode crc, so set
    // up uc_crc here
