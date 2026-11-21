@@ -122,6 +122,10 @@ void ReadSpecialSettings (const char * name)
    settings.hacks = 0;
    settings.use_display_list_depth = strcmp(name, "HEXEN") == 0;
 
+   settings.use_rdp_triangle_depth = strcmp(name, "NIGHTMARE CREATURES") == 0;
+   if (settings.use_rdp_triangle_depth)
+      settings.swapmode = 2; /* Mix; explicit core options can override this. */
+
    // We might want to detect some games by ucode crc, so set
    // up uc_crc here
    uc_crc = 0;

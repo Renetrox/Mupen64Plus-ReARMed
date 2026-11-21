@@ -230,6 +230,7 @@ typedef struct
    int n64_z_scale; //scale vertex z value before writing to depth buffer, as N64 does.
 
    uint32_t hacks;
+   bool use_rdp_triangle_depth;
 } SETTINGS;
 
 typedef struct
