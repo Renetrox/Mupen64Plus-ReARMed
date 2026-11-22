@@ -2177,6 +2177,9 @@ static void glide64ProcessRDPList_internal(void)
    if (dp_end <= dp_current)
       return;
 
+   if (skip_raster)
+      glide64_frameskip_note_rdp_skip();
+
    (*(uint32_t*)gfx_info.DPC_STATUS_REG) &= ~0x0002;
 
    __RSP.bLLE = true;

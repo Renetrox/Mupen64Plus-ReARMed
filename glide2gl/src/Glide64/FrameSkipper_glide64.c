@@ -21,6 +21,23 @@ typedef struct glide64_frame_skipper
    uint64_t actual_frame;
 } glide64_frame_skipper;
 
+static int rdp_skipped_this_slice;
+
+void glide64_frameskip_begin_slice(void)
+{
+   rdp_skipped_this_slice = 0;
+}
+
+void glide64_frameskip_note_rdp_skip(void)
+{
+   rdp_skipped_this_slice = 1;
+}
+
+int glide64_frameskip_rdp_skipped(void)
+{
+   return rdp_skipped_this_slice;
+}
+
 static glide64_frame_skipper g_frameskip = {
    GLIDE64_FRAMESKIP_DISABLED,
    0,
@@ -32,6 +49,7 @@ static glide64_frame_skipper g_frameskip = {
 
 void glide64_frameskip_reset(void)
 {
+   rdp_skipped_this_slice = 0;
    g_frameskip.skip_counter   = 0;
    g_frameskip.initial_time_us = 0;
    g_frameskip.actual_frame    = 0;

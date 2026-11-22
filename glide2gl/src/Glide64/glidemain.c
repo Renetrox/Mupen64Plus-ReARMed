@@ -686,6 +686,15 @@ void glide_set_filtering(unsigned value)
 
 void newSwapBuffers(void)
 {
+   /* State-only raw-RDP packets must not swap/clear an undrawn frame.
+    * Consult the slice latch, not will_skip_next(): UpdateScreen has
+    * already advanced the scheduler to the following VI. */
+   if (glide64_frameskip_rdp_skipped())
+   {
+      rdp.updatescreen = 0;
+      return;
+   }
+
    if (!rdp.updatescreen)
       return;
 
