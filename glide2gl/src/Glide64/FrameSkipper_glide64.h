@@ -19,6 +19,12 @@ enum glide64_frameskip_mode
    GLIDE64_FRAMESKIP_MANUAL   = 2
 };
 
+/* Raw-RDP presentation state is latched per libretro slice, independently
+ * of the scheduler advancing at the VI interrupt. */
+void glide64_frameskip_begin_slice(void);
+void glide64_frameskip_note_rdp_skip(void);
+int glide64_frameskip_rdp_skipped(void);
+
 void glide64_frameskip_configure(int mode, int max_skips);
 void glide64_frameskip_set_target_fps(int fps);
 void glide64_frameskip_reset(void);

@@ -1087,6 +1087,19 @@ void emu_step_render(void)
       return;
    }
 
+#ifdef HAVE_GLIDE64
+   if (gfx_plugin == GFX_GLIDE64 && glide64_frameskip_rdp_skipped())
+   {
+      /* Repeat the frontend's last complete image, even when the optional
+       * generic frame-dupe speedhack is disabled. The core FBO may contain
+       * a cleared or partially updated image on a skipped raw-RDP slice. */
+      frame_latched = false;
+      frame_presented = false;
+      video_cb(NULL, screen_width, screen_height, screen_pitch);
+      return;
+   }
+#endif
+
    if (frame_latched)
    {
       frame_latched = false;
@@ -3432,6 +3445,9 @@ void retro_run (void)
          EmuThreadInit();
       }
 
+#ifdef HAVE_GLIDE64
+      glide64_frameskip_begin_slice();
+#endif
       retro_frameskip_begin_vi();
       EmuThreadStep();
 
