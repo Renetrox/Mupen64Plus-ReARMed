@@ -2161,6 +2161,11 @@ static void glide64ProcessRDPList_internal(void)
 {
    uint32_t i;
    bool set_zero                  = true;
+   /* The skipper advances only in UpdateScreen (VI), so every packet in
+    * this VI observes the same decision. Never discard an RDP packet:
+    * texture/state commands and FullSync must still run, and partial
+    * commands must remain buffered for the next packet. */
+   const bool skip_raster = glide64_frameskip_will_skip_next();
    const uint32_t dp_current      = *(uint32_t*)gfx_info.DPC_CURRENT_REG;
    const uint32_t dp_end          = *(uint32_t*)gfx_info.DPC_END_REG;
    const uint32_t length          = dp_end - dp_current;
@@ -2208,7 +2213,12 @@ static void glide64ProcessRDPList_internal(void)
       w0       = __RSP.w0;
       w1       = __RSP.w1;
 
-      rdp_command_table[cmd](w0, w1);
+      /* Only raster commands may be omitted. In particular, keep TMEM
+       * loads, image/scissor changes and DP completion interrupts intact.
+       * Scope this to the raw RDP path; HLE keeps its existing skipper. */
+      if (!skip_raster || !((cmd >= 0x08 && cmd <= 0x0f) ||
+                            cmd == 0x24 || cmd == 0x25 || cmd == 0x36))
+         rdp_command_table[cmd](w0, w1);
 
       __RDP.cmd_cur = (__RDP.cmd_cur + rdp_command_length[cmd] / 4) & MAXCMD_MASK;
    }
