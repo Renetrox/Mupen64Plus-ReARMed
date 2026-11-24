@@ -106,6 +106,14 @@ void Config_gln64_ApplyCoreOptions(void)
    config.forceBufferClear = gln64_core_screen_clear;
    config.zHack            = gln64_core_z_hack;
 
+   /* Experimental and startup-only; never carry it over between games. */
+   config.kigoldSkipSky = 0;
+   var.key = "parallel-n64-gln64-kigold-skip-sky";
+   var.value = NULL;
+   if (environ_cb &&
+       environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      config.kigoldSkipSky = !strcmp(var.value, "enabled");
+
    /* FZ exposes 2xSAI as a texture option. Keep the legacy config-file value
     * available for standalone-style use, but let the libretro Core Option
     * override it when RetroArch supplies one. This option is startup-only:

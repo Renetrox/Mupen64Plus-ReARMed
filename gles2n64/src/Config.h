@@ -69,6 +69,8 @@ typedef struct
 		uint32_t validityCheckMethod; // 0: checksum; 1: fill RDRAM
 	} frameBufferEmulation;
 
+    int     kigoldSkipSky;
+
     int     zHack;
 
     int     enableFog;

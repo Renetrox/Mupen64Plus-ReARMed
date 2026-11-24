@@ -21,6 +21,7 @@
 #include "VI.h"
 #include "Config.h"
 #include "ShaderCombiner.h"
+#include "KIGoldSky.h"
 
 #include "../../Graphics/RDP/gDP_state.h"
 #include "../../Graphics/RDP/RDP_state.h"
@@ -897,6 +898,10 @@ void gln64gDPTextureRectangle( float ulx, float uly, float lrx, float lry, int32
    }
 	lry = MAX(lry, uly + 1.0f);
 
+	/* Only raw RDP sky candidates are omitted. Texture rectangles (HUD,
+	 * text and sprites) never enter this path. This remains a heuristic. */
+	if (gln64_kigold_skip_sky(config.kigoldSkipSky, config.romName, _pRdpCmd))
+		return;
 	textureTileOrg[0] = gSP.textureTile[0];
 	textureTileOrg[1] = gSP.textureTile[1];
    gSP.textureTile[0] = &gDP.tiles[tile];
@@ -1028,12 +1033,17 @@ void gln64gDPLLETriangle(uint32_t _w1, uint32_t _w2, int _shade, int _texture, i
 	int r, g, b, a, z, s, t, w;
 	int drdx = 0, dgdx = 0, dbdx = 0, dadx = 0, dzdx = 0, dsdx = 0, dtdx = 0, dwdx = 0;
 	int drde = 0, dgde = 0, dbde = 0, dade = 0, dzde = 0, dsde = 0, dtde = 0, dwde = 0;
-	int flip = (_w1 & 0x8000000) ? 1 : 0;
+	/* RDP left-major flag is bit 23; bit 27 belongs to the opcode. */
+	int flip = (_w1 & 0x00800000u) ? 1 : 0;
 	uint32_t * shade_base = _pRdpCmd + 8;
 	uint32_t * texture_base = _pRdpCmd + 8;
 	uint32_t * zbuffer_base = _pRdpCmd + 8;
 	const uint32_t tile = _SHIFTR(_w1, 16, 3);
 	struct gDPTile *textureTileOrg[2];
+	/* Only raw RDP sky candidates are omitted. Texture rectangles (HUD,
+	 * text and sprites) never enter this path. This remains a heuristic. */
+	if (gln64_kigold_skip_sky(config.kigoldSkipSky, config.romName, _pRdpCmd))
+		return;
 	textureTileOrg[0] = gSP.textureTile[0];
 	textureTileOrg[1] = gSP.textureTile[1];
 	gSP.textureTile[0] = &gDP.tiles[tile];
