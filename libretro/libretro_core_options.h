@@ -54,6 +54,22 @@ static const struct retro_core_option_v2_definition m64p_rearmed_gln64_2xsai_opt
    "disabled"
 };
 
+static const struct retro_core_option_v2_definition m64p_rearmed_glide64_kigold_sky_option =
+{
+   CORE_NAME "-glide64-kigold-skip-sky",
+   "Glide64: KI Gold skip sky (experimental)",
+   "KI Gold skip sky (experimental)",
+   "Skip raw non-Z sky triangles using KI Gold's documented sky color combiner. Enables frame clearing to avoid old sky pixels. Only affects Killer Instinct Gold in Glide64. Other skies may remain; visual results and speed gains require device testing. Restart content after changing.",
+   NULL,
+   "glide64",
+   {
+      { "disabled", "Disabled" },
+      { "enabled", "Enabled" },
+      { NULL, NULL },
+   },
+   "disabled"
+};
+
 static struct retro_core_option_v2_category m64p_rearmed_option_cats[] = {
    {
       M64P_REARMED_PLUGIN_CATEGORY_KEY,
@@ -297,10 +313,10 @@ static void m64p_rearmed_prepare_plugin_options(void)
 
    base_count = m64p_rearmed_count_base_options();
 
-   /* One extra slot for the synthetic FZ 2xSAI option, plus the terminator. */
+   /* Two synthetic renderer options, plus the terminator. */
    m64p_rearmed_option_defs =
          (struct retro_core_option_v2_definition *)calloc(
-               base_count + 2, sizeof(struct retro_core_option_v2_definition));
+               base_count + 3, sizeof(struct retro_core_option_v2_definition));
 
    if (!m64p_rearmed_option_defs)
    {
@@ -339,6 +355,8 @@ static void m64p_rearmed_prepare_plugin_options(void)
 
    /* Real renderer categories, kept consecutive and in ReARMed's chosen order. */
    m64p_rearmed_append_category_options(&write_index, "glide64");
+   m64p_rearmed_append_copy(&write_index, &m64p_rearmed_glide64_kigold_sky_option,
+         "glide64");
    m64p_rearmed_append_category_options(&write_index, "gles2n64");
    m64p_rearmed_append_copy(&write_index, &m64p_rearmed_gln64_2xsai_option,
          "gles2n64");

@@ -232,6 +232,7 @@ typedef struct
    uint32_t hacks;
    bool use_rdp_triangle_depth;
    bool preserve_rdp_scissor;
+   bool kigold_skip_sky;
 } SETTINGS;
 
 typedef struct
