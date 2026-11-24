@@ -16,4 +16,14 @@ static int glide64_kigold_skip_sky(int enabled, int is_kigold,
    return enabled && is_kigold && shade && texture && !zbuffer &&
          cycle_type == 1 /* G_CYC_2CYCLE */ && color_key == 0x6134ab50u;
 }
+/* Diagnostic isolation only: eb31eb31 is NOT a confirmed sky identifier.
+ * This intentionally may hide floors or other matching raw geometry. */
+static int glide64_kigold_hide_eb31(int enabled, int is_kigold,
+      int shade, int texture, int zbuffer, unsigned cycle_type,
+      uint32_t cycle1, uint32_t cycle2)
+{
+   const uint32_t color_key = (cycle1 << 16) | (cycle2 & 0xffffu);
+   return enabled && is_kigold && shade && texture && !zbuffer &&
+         cycle_type == 0 && color_key == 0xeb31eb31u;
+}
 #endif

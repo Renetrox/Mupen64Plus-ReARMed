@@ -15,5 +15,13 @@ int main(void)
    /* Neighboring combiners are used by other scenery/effects. */
    assert(!glide64_kigold_skip_sky(1, 1, 1, 1, 0, 1, 0x6134, 0xa750));
    assert(!glide64_kigold_skip_sky(1, 1, 1, 1, 0, 1, 0x6134, 0xe2f0));
+   assert(glide64_kigold_hide_eb31(1, 1, 1, 1, 0, 0, 0xeb31, 0xeb31));
+   assert(!glide64_kigold_hide_eb31(0, 1, 1, 1, 0, 0, 0xeb31, 0xeb31));
+   assert(!glide64_kigold_hide_eb31(1, 0, 1, 1, 0, 0, 0xeb31, 0xeb31));
+   assert(!glide64_kigold_hide_eb31(1, 1, 1, 1, 1, 0, 0xeb31, 0xeb31));
+   assert(!glide64_kigold_hide_eb31(1, 1, 1, 1, 0, 1, 0xeb31, 0xeb31));
+   assert(!glide64_kigold_hide_eb31(1, 1, 0, 1, 0, 0, 0xeb31, 0xeb31));
+   assert(!glide64_kigold_hide_eb31(1, 1, 1, 0, 0, 0, 0xeb31, 0xeb31));
+   assert(!glide64_kigold_hide_eb31(1, 1, 1, 1, 0, 0, 0x6134, 0xab50));
    return 0;
 }

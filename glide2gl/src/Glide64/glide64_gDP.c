@@ -128,6 +128,11 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
    /* Restrict this to raw shaded/textured non-Z packets and the sky
     * combiner explicitly identified in Combine.c. No texrect/HUD path. */
    {
+      const char *hide_eb31 = getenv("REARMED_KIGOLD_HIDE_EB31");
+      const int skip_candidate = glide64_kigold_hide_eb31(
+            hide_eb31 && strcmp(hide_eb31, "1") == 0,
+            (settings.hacks & hack_KI) != 0, shade, texture, zbuffer,
+            g_gdp.other_modes.cycle_type, rdp.cycle1, rdp.cycle2);
       const int skip_sky = glide64_kigold_skip_sky(settings.kigold_skip_sky,
             (settings.hacks & hack_KI) != 0, shade, texture, zbuffer,
             g_gdp.other_modes.cycle_type, rdp.cycle1, rdp.cycle2);
@@ -136,6 +141,8 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
       if ((settings.hacks & hack_KI) && getenv("REARMED_KIGOLD_SKY_TRACE"))
       {
          static uint64_t seen[128];
+         static unsigned samples[128];
+         static uint32_t sources[128];
          static unsigned count;
          const uint32_t key = (rdp.cycle1 << 16) | (rdp.cycle2 & 0xffffu);
          const uint64_t signature = ((uint64_t)key << 8) |
@@ -143,17 +150,36 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
                (zbuffer ? 4u : 0u) |
                ((uint64_t)(g_gdp.other_modes.cycle_type & 3) << 3);
          unsigned n;
-         for (n = 0; n < count && seen[n] != signature; ++n) {}
+         for (n = 0; n < count; ++n)
+            if (seen[n] == signature && sources[n] == g_gdp.ti_address)
+               break;
          if (n == count && count < 128)
          {
-            seen[count++] = signature;
-            fprintf(stderr, "[KI-SKY] raw key=%08x mode=%d legacy_mode=%u shade=%d tex=%d z=%d option=%d skip=%d cmd=%08x %08x\n",
-                  key, g_gdp.other_modes.cycle_type,
-                  (unsigned)gDP.otherMode.cycleType, shade, texture, zbuffer,
-                  settings.kigold_skip_sky, skip_sky, w0, w1);
+            seen[count] = signature;
+            sources[count] = g_gdp.ti_address;
+            samples[count++] = 0;
+         }
+         if (n < count)
+         {
+            const unsigned sample = ++samples[n];
+            if (sample <= 3 || (sample <= 4096 && (sample & (sample - 1)) == 0))
+            {
+               const unsigned tile = (w0 >> 16) & 7u;
+               fprintf(stderr, "[KI-SKY] raw key=%08x mode=%d legacy_mode=%u shade=%d tex=%d z=%d option=%d skip=%d candidate=%d frame=%u sample=%u tile=%u source=%08x fmt=%d size=%d width=%d tmem=%d tilefmt=%d tilesize=%d yhymyl=%04x,%04x,%04x xhxml=%08x,%08x,%08x slopes=%08x,%08x,%08x cmd=%08x %08x\n",
+                     key, g_gdp.other_modes.cycle_type,
+                     (unsigned)gDP.otherMode.cycleType, shade, texture, zbuffer,
+                     settings.kigold_skip_sky, skip_sky, skip_candidate,
+                     (unsigned)frame_count, sample, tile, g_gdp.ti_address,
+                     g_gdp.ti_format, g_gdp.ti_size, g_gdp.ti_width,
+                     g_gdp.tile[tile].tmem, g_gdp.tile[tile].format,
+                     g_gdp.tile[tile].size,
+                     w1 & 0x3fffu, (w1 >> 16) & 0x3fffu, w0 & 0x3fffu,
+                     rdp_cmd[4], rdp_cmd[6], rdp_cmd[2],
+                     rdp_cmd[5], rdp_cmd[7], rdp_cmd[3], w0, w1);
+            }
          }
       }
-      if (skip_sky)
+      if (skip_sky || skip_candidate)
          return;
    }
 

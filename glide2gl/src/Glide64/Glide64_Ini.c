@@ -2017,6 +2017,17 @@ void ReadSpecialSettings (const char * name)
       settings.buff_clear = 1;
    }
 
+   /* Temporary visual isolation, independent of the normal sky option. */
+   if (settings.hacks & hack_KI)
+   {
+      const char *hide = getenv("REARMED_KIGOLD_HIDE_EB31");
+      if (hide && strcmp(hide, "1") == 0)
+      {
+         settings.buff_clear = 1;
+         fprintf(stderr, "[KI-SKY] diagnostic hide-eb31=1 (unclassified geometry)\n");
+      }
+   }
+
    if (getenv("REARMED_KIGOLD_SKY_TRACE"))
       fprintf(stderr, "[KI-SKY] settings game=%s ki=%d option=%d clear=%d\n",
             name, (settings.hacks & hack_KI) != 0,

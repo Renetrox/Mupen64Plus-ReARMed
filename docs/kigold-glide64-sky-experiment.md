@@ -72,3 +72,30 @@ raw-triangle signatures (color key, both cycle modes, shading/texture/depth,
 option and skip decisions). No broader geometry filter is enabled. Enter a fight
 for a few seconds, quit, and collect the `[KI-SKY]` lines. Diagnostic logging can
 affect timing, so do not use this run to measure performance.
+
+## Visual isolation of the remaining raw group
+
+`REARMED_KIGOLD_HIDE_EB31=1` temporarily hides ONLY KI Gold raw shaded/textured
+non-Z triangles in one-cycle mode with color key `eb31eb31`. This is explicitly
+an unclassified candidate, not a new sky fix. Floors or other geometry may
+vanish. The diagnostic is independent of the normal sky option and forces frame
+clearing to avoid stale pixels. Removing the environment variable restores the
+normal behavior on the next process launch. Other values, including `0`, do not
+activate it.
+
+Keep normal core settings identical, enter Sabrewulf or Spinal, and report which
+of clouds, floor, background, fighters or HUD disappear. Use the original launch
+without this variable as the control. Do not use trace runs to judge performance.
+
+With `REARMED_KIGOLD_SKY_TRACE=1`, the raw trace now samples each
+combiner/mode/last-image-source combination, capped at 128 combinations. It logs
+initial samples and powers of two up to 4096 per combination. Fields include
+frame, tile, last SetTextureImage address/format/size/width, tile TMEM location,
+raw 14-bit quarter-pixel Y edges, signed 16.16 X edges and slopes. `source` is the
+last SetTextureImage address, NOT a proven identity/hash of the resident TMEM
+texture. `skip` is the normal filter; `candidate` is the temporary hide decision.
+
+Updated predicate tests passed with ASan/UBSan, including disabled mode, other
+games, Z triangles, other modes, non-shaded/non-textured draws and the existing
+sky signature. The two affected renderer/configuration objects compiled with
+the project's GLES2 Makefile settings. Visual identification remains pending.
