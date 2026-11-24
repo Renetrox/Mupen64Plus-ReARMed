@@ -122,6 +122,7 @@ void ReadSpecialSettings (const char * name)
    settings.hacks = 0;
    settings.use_display_list_depth = strcmp(name, "HEXEN") == 0;
    settings.preserve_rdp_scissor = false;
+   settings.kigold_skip_sky = false;
 
    settings.use_rdp_triangle_depth = strcmp(name, "NIGHTMARE CREATURES") == 0;
    if (settings.use_rdp_triangle_depth)
@@ -2002,6 +2003,18 @@ void ReadSpecialSettings (const char * name)
 		 glide_set_filtering(2);
 	  else if (strcmp(var.value, "bilinear") == 0)
 		 glide_set_filtering(3);
+   }
+
+   /* KI Gold normally relies on the backdrop overwriting the previous
+    * frame. Clear when omitting it so old pixels cannot accumulate. */
+   var.key = "parallel-n64-glide64-kigold-skip-sky";
+   var.value = NULL;
+   if ((settings.hacks & hack_KI) &&
+       environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value &&
+       strcmp(var.value, "enabled") == 0)
+   {
+      settings.kigold_skip_sky = true;
+      settings.buff_clear = 1;
    }
 
    /* this has to be done here. */

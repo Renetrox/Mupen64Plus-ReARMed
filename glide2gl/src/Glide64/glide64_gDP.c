@@ -2,6 +2,7 @@
 
 #include "glide64_gDP.h"
 #include "Combine.h"
+#include "KIGoldSky.h"
 #include "Util.h"
 
 #include "../../Graphics/RDP/gDP_state.h"
@@ -122,6 +123,12 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
    int drde = 0, dgde = 0, dbde = 0, dade = 0, dzde = 0, dsde = 0, dtde = 0, dwde = 0;
    int flip = (w0 & 0x800000) ? 1 : 0;
    const bool use_rdp_depth = __RSP.bLLE && settings.use_rdp_triangle_depth;
+   /* Experimental KI-only backdrop omission. No texrect/sprite/HUD path. */
+   if (glide64_kigold_skip_sky(settings.kigold_skip_sky,
+         (settings.hacks & hack_KI) != 0, shade, texture, zbuffer,
+         g_gdp.other_modes.cycle_type, rdp.cycle1, rdp.cycle2))
+      return;
+
    uint32_t * shade_base = rdp_cmd + 8;
    uint32_t * texture_base = rdp_cmd + 8;
    uint32_t * zbuffer_base = rdp_cmd + 8;
