@@ -2017,6 +2017,11 @@ void ReadSpecialSettings (const char * name)
       settings.buff_clear = 1;
    }
 
+   if (getenv("REARMED_KIGOLD_SKY_TRACE"))
+      fprintf(stderr, "[KI-SKY] settings game=%s ki=%d option=%d clear=%d\n",
+            name, (settings.hacks & hack_KI) != 0,
+            settings.kigold_skip_sky, settings.buff_clear);
+
    /* this has to be done here. */
    if (strstr(name, "POKEMON STADIUM 2"))
       settings.frame_buffer &= ~fb_emulation;

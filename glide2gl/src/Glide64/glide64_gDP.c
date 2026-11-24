@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "glide64_gDP.h"
 #include "Combine.h"
@@ -125,10 +127,35 @@ static void glide64gDPLLETriangle(uint32_t w0, uint32_t w1, int shade, int textu
    const bool use_rdp_depth = __RSP.bLLE && settings.use_rdp_triangle_depth;
    /* Restrict this to raw shaded/textured non-Z packets and the sky
     * combiner explicitly identified in Combine.c. No texrect/HUD path. */
-   if (glide64_kigold_skip_sky(settings.kigold_skip_sky,
-         (settings.hacks & hack_KI) != 0, shade, texture, zbuffer,
-         gDP.otherMode.cycleType, rdp.cycle1, rdp.cycle2))
-      return;
+   {
+      const int skip_sky = glide64_kigold_skip_sky(settings.kigold_skip_sky,
+            (settings.hacks & hack_KI) != 0, shade, texture, zbuffer,
+            g_gdp.other_modes.cycle_type, rdp.cycle1, rdp.cycle2);
+      /* Read cycle type directly from the raw RDP SetOtherModes state.
+       * Trace the legacy mirror too, to detect any divergence. */
+      if ((settings.hacks & hack_KI) && getenv("REARMED_KIGOLD_SKY_TRACE"))
+      {
+         static uint64_t seen[128];
+         static unsigned count;
+         const uint32_t key = (rdp.cycle1 << 16) | (rdp.cycle2 & 0xffffu);
+         const uint64_t signature = ((uint64_t)key << 8) |
+               (shade ? 1u : 0u) | (texture ? 2u : 0u) |
+               (zbuffer ? 4u : 0u) |
+               ((uint64_t)(g_gdp.other_modes.cycle_type & 3) << 3);
+         unsigned n;
+         for (n = 0; n < count && seen[n] != signature; ++n) {}
+         if (n == count && count < 128)
+         {
+            seen[count++] = signature;
+            fprintf(stderr, "[KI-SKY] raw key=%08x mode=%d legacy_mode=%u shade=%d tex=%d z=%d option=%d skip=%d cmd=%08x %08x\n",
+                  key, g_gdp.other_modes.cycle_type,
+                  (unsigned)gDP.otherMode.cycleType, shade, texture, zbuffer,
+                  settings.kigold_skip_sky, skip_sky, w0, w1);
+         }
+      }
+      if (skip_sky)
+         return;
+   }
 
    uint32_t * shade_base = rdp_cmd + 8;
    uint32_t * texture_base = rdp_cmd + 8;

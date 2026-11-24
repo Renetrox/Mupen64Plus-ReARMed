@@ -61,3 +61,14 @@ compiled successfully using the project's Makefile in GLES2/Glide64 mode and
 unmodified Khronos GLES2 headers. No full linked core or ARM64 binary was built;
 no ROM/device test was possible. The pre-existing CORE_NAME redefinition warning
 is still present.
+
+## Diagnostic update after no visible change
+
+The cycle gate now reads `g_gdp.other_modes.cycle_type`, written directly by
+raw RDP SetOtherModes. The trace also records the legacy `gDP` mirror to check
+whether the values diverge on the device; this is not a confirmed root cause.
+Set `REARMED_KIGOLD_SKY_TRACE=1` to log option/game detection and up to 128 unique
+raw-triangle signatures (color key, both cycle modes, shading/texture/depth,
+option and skip decisions). No broader geometry filter is enabled. Enter a fight
+for a few seconds, quit, and collect the `[KI-SKY]` lines. Diagnostic logging can
+affect timing, so do not use this run to measure performance.
