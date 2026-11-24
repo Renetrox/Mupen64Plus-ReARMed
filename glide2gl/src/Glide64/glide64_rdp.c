@@ -37,6 +37,8 @@
 //****************************************************************
 
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <encodings/crc32.h>
 #include "Gfx_1.3.h"
 #include "3dmath.h"
@@ -617,6 +619,41 @@ static void rdp_texrect(uint32_t w0, uint32_t w1)
    VERTEX *vptr = NULL, vstd[4];
    
    rdp_getTexRectParams(&__RDP.w2, &__RDP.w3);
+
+   /* Diagnostic only: KI backdrops may use texrects instead of raw triangles.
+    * Keep all texrect rendering intact; HUD, sprites and text share this path. */
+   if ((settings.hacks & hack_KI) && getenv("REARMED_KIGOLD_SKY_TRACE"))
+   {
+      static uint64_t seen[128];
+      static unsigned samples[128];
+      static unsigned count;
+      const uint32_t key = (rdp.cycle1 << 16) | (rdp.cycle2 & 0xffffu);
+      const unsigned width = ((w0 >> 12) & 0xfffu);
+      const unsigned height = w0 & 0xfffu;
+      const unsigned left = (w1 >> 12) & 0xfffu;
+      const unsigned top = w1 & 0xfffu;
+      const int large = width >= left + 128u * 4u &&
+            height >= top + 32u * 4u;
+      const uint64_t signature = ((uint64_t)key << 8) |
+            ((uint64_t)(g_gdp.other_modes.cycle_type & 3) << 1) | large;
+      unsigned n;
+      for (n = 0; n < count && seen[n] != signature; ++n) {}
+      if (n == count && count < 128)
+      {
+         seen[count] = signature;
+         samples[count++] = 0;
+      }
+      if (n < count)
+      {
+         const unsigned sample = ++samples[n];
+         /* First examples, then sparse later samples across menu/fight changes. */
+         if (sample <= 3 || (sample <= 4096 && (sample & (sample - 1)) == 0))
+            fprintf(stderr, "[KI-SKY] texrect key=%08x mode=%d option=%d frame=%u sample=%u xy=%u,%u-%u,%u tile=%u cmd=%08x %08x %08x %08x\n",
+                  key, g_gdp.other_modes.cycle_type, settings.kigold_skip_sky,
+                  (unsigned)frame_count, sample, left, top, width, height,
+                  (w1 >> 24) & 7u, w0, w1, __RDP.w2, __RDP.w3);
+      }
+   }
 
    if ((settings.hacks&hack_Yoshi) && settings.ucode == ucode_S2DEX)
    {
